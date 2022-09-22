@@ -9,12 +9,14 @@ TBA
 
 Can be found in the model initialisation in [Two-Asset Model module](two_asset/TwoAssetModel.py). 
 
-**Tables**
+**Tables:**
+
 TBA
  <!-- a normal html comment 
 The average MPCs in Table 3 and MPCs from Table 4 sensitivity analysis are also present in notebook. As default, the MPCs are cross-computed in the simulation part, but to create the non cross-computed MPCs a boolean for ``cross_compute=False`` can be set when initiating the model.
 -->
 **Figures:**
+
 TBA
  <!-- 
 Each notebook will plot the figures associated with the given model.
