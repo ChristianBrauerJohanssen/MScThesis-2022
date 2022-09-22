@@ -1,13 +1,12 @@
 # Macroprudential Policy and the Housing Market - *Quantifying Unequal Policy Impact Across Age and Wealth*
 This is the working repository for my Master's thesis in Economics at the [University of Copenhagen](https://www.economics.ku.dk/).
 
-
 ## Replicating the results
 TBA
 
-**Parameterisation**
+**Parameterisation:**
 
-Can be found in the model initialisation in [Two-Asset Model module](two_asset/TwoAssetModel.py). 
+Can be found in the model initialisation in [TBA](). 
 
 **Tables:**
 
@@ -23,7 +22,7 @@ Each notebook will plot the figures associated with the given model.
 -->
 
 ## Dependencies
-The code is built upon the framework developed by Jeppe Druedahl & Co. in the [NumEconCopenhagen Project](https://github.com/NumEconCopenhagen)
+The code structure builds upon the framework developed by Jeppe Druedahl & Co. in the [NumEconCopenhagen Project](https://github.com/NumEconCopenhagen)
 
 Packages required for running the notebooks are:
 - [numpy](https://pypi.org/project/numpy/)
