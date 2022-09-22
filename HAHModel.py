@@ -9,7 +9,7 @@ from GEModelTools import GEModelClass
 import consav
 
     # c. local modules
-import steady_state
+#import steady_state
 import HHproblems
 import trans
 import utility
@@ -52,7 +52,7 @@ class HAHModelClass(EconModelClass,GEModelClass):
             'Gamma','I','K','L','r','rk','w','Y']
 
         # e. functions
-        self.solve_hh_backwards = household_problem.solve_hh_backwards
+        #self.solve_hh_backwards = household_problem.solve_hh_backwards
         self.block_pre = None # not used today
         self.block_post = None # not used today
 
@@ -65,15 +65,17 @@ class HAHModelClass(EconModelClass,GEModelClass):
         par.Nz = 7 # number of stochastic discrete states (here productivity)
 
         # a. preferences
-        par.beta = 0.965    # subjective discount factor
-        par.sigma = 2.0     # CRRA coefficient
-        par.alpha = 1.1     # housing curvature
-        par.nu = 0.26       # weight on housing
-        par.phi = 0.85      # scaling of housing services from rent
-        par.kappa = 0.34    # utility cost of moving
-        par.thetab = 100    # strength of bequest motive 
+        par.beta = 0.965                                # subjective discount factor
+        par.rho = 2.0                                   # CRRA coefficient
+        par.alpha = 1.1                                 # housing curvature
+        par.nu = 0.26                                   # weight on housing
+        par.phi = 0.85                                  # scaling of housing services from rent
+        par.kappa = 0.34                                # disutility of moving
+        par.thetab = 100                                # strength of bequest motive 
+        par.Κ = 7.7                                     # extent of bequest as luxury
+        par.zeta = 0.8                                  # disutility of default 
 
-        # b. life cycle and income
+        # b. demographics and life cycle profile
         par.Tmin = 25                                   # age when entering the model
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
@@ -83,14 +85,46 @@ class HAHModelClass(EconModelClass,GEModelClass):
         par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
         par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
 
+        # c. income process
+        par.sigma_psi = 0.1                             # std. dev. of permanent shock
+        par.sigma_xi = 0.1                              # std. dev. of transitory shock
+        par.pi = 0.025                                  # unemployment probability
+        par.b = 0.2                                     # unemployment benefits
+        par.sigma_epsilon = 0.04                        # std. dev. of housing shock
+        par.Npsi = 5                                    # quadrature nodes for permanent shock
+        par.Nxi = 5                                     # quadrature nodes for transitory shock
+        par.Nepsilon = 5                                # quadrature nodes for housing shock
+
+        # d. interest rates and financial regulation
+        par.r = 0.01                                    # return on liquid assets
+        par.r_m = 0.03                                  # amortising mortgage interest rate     
+        par.r_da = 0.045                                # deferred amortisation mortgage rate
+        par.omega_ltv = 0.8                             # loan-to-value ratio  
+        par.omega_dti = 5                               # debt-to-income ratio
+        par.Cp_ref = 0.05                               # proportional refinancing cost
+        par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value  
+
+        # e. housing and rental markets
+        par.delta = 0.015                               # proportional maintenance cost
+        par.gamma = 0.008                               # per rental unit operating cost
+        par.C_buy = 0.06                                # proportional house sale cost
+        par.C_sell = 0.04                               # proportional house purchase cost
+
+        # f. taxation
+        par.tauy0 = 0.75                                # income tax function parameter 1    
+        par.tauy1 = 0.15                                # income tax function parameter 2
+        par.tauh0 = 0.0092                              # bottom-bracket property tax rate
+        par.tauh1 = 0.03                                # top-bracket property tax rate
+        par.qh_bar = 3_040_000                          # top-bracket property tax threshold
+
         # b. income parameters
-        par.rho_z = 0.96 # AR(1) parameter
-        par.sigma_psi = 0.10 # std. of shock
+        #par.rho_z = 0.96 # AR(1) parameter
+        #par.sigma_psi = 0.10 # std. of shock
 
         # c. production and investment
-        par.alpha = 0.36 # cobb-douglas
-        par.delta = 0.10 # depreciation rate
-        par.Gamma_ss = 1.0 # direct approach: technology level in steady state
+        #par.alpha = 0.36 # cobb-douglas
+        #par.delta = 0.10 # depreciation rate
+        #par.Gamma_ss = 1.0 # direct approach: technology level in steady state
 
         # f. grids         
         par.a_max = 100.0 # maximum point in grid for a
