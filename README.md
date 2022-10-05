@@ -25,11 +25,12 @@ Each notebook will plot the figures associated with the given model.
 The code structure builds upon the framework developed by Jeppe Druedahl & Co. in the [NumEconCopenhagen Project](https://github.com/NumEconCopenhagen)
 
 Packages required for running the notebooks are:
-- [numpy](https://pypi.org/project/numpy/)
-- [pandas](https://pypi.org/project/pandas/)
-- [numba](https://pypi.org/project/numba/)
-- [quantecon](https://pypi.org/project/quantecon/)
-- [EconModel](https://pypi.org/project/EconModel/)
 - [ConSav](https://pypi.org/project/ConSav/)
+- [EconModel](https://pypi.org/project/EconModel/)
 - [GEModelTools](https://github.com/NumEconCopenhagen/GEModelTools)
 - [matplotlib](https://pypi.org/project/matplotlib/)
+- [numpy](https://pypi.org/project/numpy/)
+- [numba](https://pypi.org/project/numba/)
+- [pandas](https://pypi.org/project/pandas/)
+- [quantecon](https://pypi.org/project/quantecon/)
+
