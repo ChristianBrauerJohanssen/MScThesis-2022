@@ -8,9 +8,11 @@ from numba import njit, prange
 
 # b. NumEconCph packages
 from consav import golden_section_search
+from consav import linear_interp
 
 # c. local modules
 import utility
+import trans
 
 ##############################
 # 2. Last period and bequest #
@@ -102,7 +104,7 @@ def solve_last_period(t,sol,par):
 
 
 ####################
-# 5. Refinance     # 
+# 5. Ref. problem  # 
 ####################
 
 

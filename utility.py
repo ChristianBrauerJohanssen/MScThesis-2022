@@ -1,3 +1,4 @@
+# imports
 from numba import njit
 
 # felicity function
