@@ -12,19 +12,21 @@ from consav import golden_section_search
 # c. local modules
 import utility
 
-####################
-#    2. Last period/ Bequest    #
-####################
+##############################
+# 2. Last period and bequest #
+##############################
 
 # a. objective
 @njit
-def obj_last_period(d,x,par):
+def obj_last_period(c,m,h,n,move,rent,par):
     """ objective function in last period """
     
     # implied consumption (rest)
-    c = x-d
+    ab = m - c
+    
+    last = -utility.func(c,h,n,move,rent,par) + utility.bequest_func(ab,par)
 
-    return -utility.func(c,d,par)
+    return last
 
 @njit(parallel=True)
 def solve_last_period(t,sol,par):
@@ -32,7 +34,7 @@ def solve_last_period(t,sol,par):
 
     # unpack
     inv_v_stay = sol.inv_v_stay[t]
-    inv_marg_u_keep = sol.inv_marg_u_stay[t]
+    inv_marg_u_stay = sol.inv_marg_u_stay[t]
     c_stay = sol.c_stay[t]
     inv_v_adj = sol.inv_v_adj[t]
 
@@ -40,7 +42,7 @@ def solve_last_period(t,sol,par):
     d_adj = sol.d_adj[t]
     c_adj = sol.c_adj[t]
 
-    # a. keep
+    # a. stay
     for i_p in prange(par.Np):
         for i_n in range(par.Nn):
             for i_m in range(par.Nm):
@@ -50,18 +52,18 @@ def solve_last_period(t,sol,par):
                 m = par.grid_m[i_m]
 
                 if m == 0: # forced c = 0 
-                    c_keep[i_p,i_n,i_m] = 0
-                    inv_v_keep[i_p,i_n,i_m] = 0
-                    inv_marg_u_keep[i_p,i_n,i_m] = 0
+                    c_stay[i_p,i_n,i_m] = 0
+                    inv_v_stay[i_p,i_n,i_m] = 0
+                    inv_marg_u_stay[i_p,i_n,i_m] = 0
                     continue
                 
                 # ii. optimal choice
-                c_keep[i_p,i_n,i_m] = m
+                c_stay[i_p,i_n,i_m] = m
 
                 # iii. optimal value
-                v_keep = utility.func(c_keep[i_p,i_n,i_m],n,par)
-                inv_v_keep[i_p,i_n,i_m] = -1.0/v_keep
-                inv_marg_u_keep[i_p,i_n,i_m] = 1.0/utility.marg_func(c_keep[i_p,i_n,i_m],n,par)
+                v_stay = utility.func(c_stay[i_p,i_n,i_m],n,par)
+                inv_v_stay[i_p,i_n,i_m] = -1.0/v_stay
+                inv_marg_u_stay[i_p,i_n,i_m] = 1.0/utility.marg_func(c_stay[i_p,i_n,i_m],n,par)
 
     # b. adj
     for i_p in prange(par.Np):
