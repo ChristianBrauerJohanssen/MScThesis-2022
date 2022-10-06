@@ -2,16 +2,16 @@
 This is the working repository for my Master's thesis in Economics at the [University of Copenhagen](https://www.economics.ku.dk/).
 
 ## Replicating the results
-TBA
+All figures and tables in the thesis containing model output can be replicated by running the notebook [HAHModel.ipynb](HAHModel.ipynb)
 
 **Parameterisation:**
 
-Can be found in the model initialisation in [TBA](). 
+when initialising the model, parameters and grids are set and allocated as dictated in the initialisation in [HAHModel.py](HAHModel.py). Alternative parameter values can be passed as a dictionary with parameter name as key when initialising the model class. 
 
 **Tables:**
 
 TBA
- <!-- a normal html comment 
+ <!--
 The average MPCs in Table 3 and MPCs from Table 4 sensitivity analysis are also present in notebook. As default, the MPCs are cross-computed in the simulation part, but to create the non cross-computed MPCs a boolean for ``cross_compute=False`` can be set when initiating the model.
 -->
 **Figures:**
