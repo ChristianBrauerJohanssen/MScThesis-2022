@@ -4,7 +4,7 @@ Solves a Heterogeneous Agent Housing Market (HAH) model building on the EconMode
 consav packages as well as the NVFI and NEGM algorithms proposed by Jeppe Druedahl.
 
 Developer: Christian Brauer Johanssen
-Date: 2022-10-05
+Create date: 2022-10-05
 Version: incomplete
 
 """
@@ -68,17 +68,17 @@ class HAHModelClass(EconModelClass):
         par.thetab = 100                                # strength of bequest motive 
         par.Κ = 7.7                                     # extent of bequest as luxury
         par.zeta = 0.8                                  # disutility of default
-        par.n = 1.0                                     # placeholder for equivalence scale 
-
+    
         # b. demographics and life cycle profile
         par.Tmin = 25                                   # age when entering the model
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
         par.G = 1.02                                    # growth in permanent income
-        par.L = np.ones(par.T-1)                        # income profile
+        par.L = np.ones(par.T-1)                        # income profile placeholder
         par.L[0:par.Tr] = np.linspace(1,1/par.G,par.Tr) # hump shaped permanet income while working
         par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
         par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
+        par.n = np.ones(par.T-1)                        # placeholder for equivalence scale 
 
         # c. income process
         par.rho_p = 0.96                                # AR(1) parameter
@@ -90,9 +90,6 @@ class HAHModelClass(EconModelClass):
 
         par.pi = 0.025                                  # unemployment probability
         par.b = 0.2                                     # unemployment benefits 
-        
-        #par.sigma_epsilon = 0.04                        # std. dev. of housing shock
-        #par.Nepsilon = 5                                # quadrature nodes for housing shock
 
         # d. interest rates and financial regulation
         par.r = 0.01                                    # return on liquid assets
@@ -101,13 +98,17 @@ class HAHModelClass(EconModelClass):
         par.omega_ltv = 0.8                             # loan-to-value ratio  
         par.omega_dti = 5                               # debt-to-income ratio
         par.Cp_ref = 0.05                               # proportional refinancing cost
-        par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value  
+        par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
+        par.Td_bar = 30                                 # maximum regulatory mortgage term length
+        par.Tda_bar = 0                                 # maximum terms with deferred amortisation
 
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
         par.gamma = 0.008                               # per rental unit operating cost
         par.C_buy = 0.06                                # proportional house sale cost
         par.C_sell = 0.04                               # proportional house purchase cost
+        #par.sigma_epsilon = 0.04                       # std. dev. of housing shock
+        #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
         par.tauy0 = 0.19                                # income tax function parameter 1    
@@ -186,15 +187,14 @@ class HAHModelClass(EconModelClass):
         if par.solmethod == 'negm': 
             par.do_marg_u = True                       # endogenous grid point method setting
 
-        # a. beginning of period states        
-        #par.grid_p = equilogspace(par.p_min,par.p_max,par.Np) # approximated by 5 state markov process
-        par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='float16')
-        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='float16')
-        
+        # a. beginning of period states (income is approxed by Np-state Markov Proces)
+        par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='float32')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-
         par.grid_d = equilogspace(0,par.d_max,par.Nd)
         par.grid_d_prime = equilogspace(0,par.d_prime_max,par.Nd_prime)
+
+        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='float32')
+        # strictly speaking, htilde is not a state
 
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)
@@ -239,10 +239,12 @@ class HAHModelClass(EconModelClass):
         np.random.seed(par.sim_seed)
 
         # e. timing
-        par.time_w = np.zeros(par.T)
+        par.time_wq = np.zeros(par.T)
         par.time_stay = np.zeros(par.T)
-        par.time_adj = np.zeros(par.T)
-        par.time_adj_full = np.zeros(par.T)
+        par.time_ref = np.zeros(par.T)
+        par.time_buy = np.zeros(par.T)
+        par.time_rent = np.zeros(par.T)
+        par.time_full = np.zeroz(par.T)
 
     #############
     #   solve   #
@@ -262,10 +264,9 @@ class HAHModelClass(EconModelClass):
         fastpar['do_print'] = False
         fastpar['do_print_period'] = False
         fastpar['T'] = 2
-        fastpar['Np'] = 3
-        fastpar['Nn'] = 3
         fastpar['Nm'] = 3
-        fastpar['Nx'] = 3
+        fastpar['Nd'] = 3
+        fastpar['Nd_prime'] = 5
         fastpar['Na'] = 3
         fastpar['simN'] = 2
 
@@ -299,30 +300,36 @@ class HAHModelClass(EconModelClass):
         par = self.par
         sol = self.sol
 
-        # a. stay
-        stay_shape = (par.T,par.Nw,par.Nh,par.Nm)        
-        sol.c_stay = np.zeros(stay_shape)
-        sol.inv_v_stay = np.zeros(stay_shape)
-        sol.inv_marg_u_stay = np.zeros(stay_shape)
+        # a. shapes
+        own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+        rent_shape = (par.T,par.Nm,par.Nw)
+
+        # a. stay        
+        sol.c_stay = np.zeros(own_shape)
+        sol.inv_v_stay = np.zeros(own_shape)
+        sol.inv_marg_u_stay = np.zeros(own_shape)
 
         # b. refinance
-        ref_shape = (par.T,par.Nw,par.Nh,par.Nm)
-        sol.d_adj = np.zeros(adj_shape)
-        sol.c_adj = np.zeros(adj_shape)
-        sol.inv_v_adj = np.zeros(adj_shape)
-        sol.inv_marg_u_adj = np.zeros(adj_shape)
+        sol.c_ref = np.zeros(own_shape)
+        sol.d_prime_ref = np.zeros(own_shape)
+        sol.Tda_prime_ref = np.zeros(own_shape)     # distinguish between beg and end Tda?
+        sol.inv_v_ref = np.zeros(own_shape)
+        #sol.inv_marg_u_ref = np.zeros(own_shape)
 
         # c. buy
-        ref_shape = (par.T,par.Nw,par.Nh,par.Nm)
-        sol.d_adj = np.zeros(adj_shape)
-        sol.c_adj = np.zeros(adj_shape)
-        sol.inv_v_adj = np.zeros(adj_shape)
-        sol.inv_marg_u_adj = np.zeros(adj_shape)
+        sol.c_buy = np.zeros(own_shape)
+        sol.h_buy = np.zeros(own_shape)
+        sol.d_prime_buy = np.zeros(own_shape)
+        sol.Tda_prime_ref = np.zeros(own_shape)
+        sol.inv_v_buy = np.zeros(own_shape)
+        #sol.inv_marg_u_adj = np.zeros(own_shape)
 
         # d. rent
+        sol.c_rent = np.zeros(rent_shape)
+        sol.h_tilde = np.zeros(rent_shape)
             
         # e. post decision
-        post_shape = (par.T-1,par.Nw,par.Nh,par.Na)
+        post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Nda_bar,par.Nw)
         sol.inv_w = np.nan*np.zeros(post_shape)
         sol.q = np.nan*np.zeros(post_shape)
         sol.q_c = np.nan*np.zeros(post_shape)
@@ -330,7 +337,7 @@ class HAHModelClass(EconModelClass):
 
 
     def solve(self,do_assert=True):
-        """ solve the model
+        """ solve the model using NEGM and NVFI
         
         Args:
 

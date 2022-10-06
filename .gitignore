@@ -1,0 +1,5 @@
+# save folder (gets large)
+/saved
+
+# checkpoints
+*.pyc
