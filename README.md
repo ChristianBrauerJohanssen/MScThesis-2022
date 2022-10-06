@@ -2,11 +2,11 @@
 This is the working repository for my Master's thesis in Economics at the [University of Copenhagen](https://www.economics.ku.dk/).
 
 ## Replicating the results
-All figures and tables in the thesis containing model output can be replicated by running the notebook [HAHModel.ipynb](HAHModel.ipynb)
+To replicate all figures and tables in the thesis containing model output, run the notebook [HAHModel.ipynb](HAHModel.ipynb).
 
 **Parameterisation:**
 
-When initialising the model, parameters and grids are set and allocated as dictated in the initialisation in [HAHModel.py](HAHModel.py). Alternative parameter values can be passed as a dictionary with parameter name as key when initialising the model class. 
+When initialising the model, parameters and grids are set and allocated as dictated in the initialisation in [HAHModel.py](HAHModel.py). Alternative parameter values can be provided in the .py file or passed as a dictionary with parameter name as key when initialising the model class. 
 
 **Tables:**
 
@@ -27,10 +27,9 @@ The code structure builds upon the framework developed by Jeppe Druedahl & Co. i
 Packages required for running the notebooks are:
 - [ConSav](https://pypi.org/project/ConSav/)
 - [EconModel](https://pypi.org/project/EconModel/)
-- [GEModelTools](https://github.com/NumEconCopenhagen/GEModelTools)
 - [matplotlib](https://pypi.org/project/matplotlib/)
 - [numpy](https://pypi.org/project/numpy/)
 - [numba](https://pypi.org/project/numba/)
-- [pandas](https://pypi.org/project/pandas/)
+<!-- - [pandas](https://pypi.org/project/pandas/)
 - [quantecon](https://pypi.org/project/quantecon/)
-
+-->
