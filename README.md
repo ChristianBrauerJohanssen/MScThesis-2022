@@ -6,7 +6,7 @@ All figures and tables in the thesis containing model output can be replicated b
 
 **Parameterisation:**
 
-when initialising the model, parameters and grids are set and allocated as dictated in the initialisation in [HAHModel.py](HAHModel.py). Alternative parameter values can be passed as a dictionary with parameter name as key when initialising the model class. 
+When initialising the model, parameters and grids are set and allocated as dictated in the initialisation in [HAHModel.py](HAHModel.py). Alternative parameter values can be passed as a dictionary with parameter name as key when initialising the model class. 
 
 **Tables:**
 
