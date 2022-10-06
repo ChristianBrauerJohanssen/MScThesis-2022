@@ -1,3 +1,7 @@
+########################
+# utility and bequests #
+########################
+
 # imports
 from numba import njit
 
@@ -21,7 +25,7 @@ def marg_func(c,par,t):
 def marg_func_nopar(c,nu,rho,n,):
     return (1-nu)(c/n)**(-rho)
 
-# bequest
+# bequest function
 @njit(fastmath=True)
 def bequest_func(ab,par,t):
     return bequest_func_nopar(ab,par.thetab,par.K,par.rho,par.n[t])

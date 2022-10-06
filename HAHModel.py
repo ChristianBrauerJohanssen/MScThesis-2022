@@ -70,6 +70,7 @@ class HAHModelClass(EconModelClass):
         par.zeta = 0.8                                  # disutility of default
     
         # b. demographics and life cycle profile
+        par.median_income = 350_000                     # 
         par.Tmin = 25                                   # age when entering the model
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
@@ -86,7 +87,7 @@ class HAHModelClass(EconModelClass):
         par.Np = 7                                      # number of permanent income states
 
         par.sigma_xi = 0.0                              # std. dev. of transitory shock
-        par.Nxi = 5                                     # quadrature nodes for transitory shock
+        par.Nxi = 1                                     # quadrature nodes for transitory shock
 
         par.pi = 0.025                                  # unemployment probability
         par.b = 0.2                                     # unemployment benefits 
@@ -111,12 +112,13 @@ class HAHModelClass(EconModelClass):
         #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
-        par.tauy0 = 0.19                                # income tax function parameter 1    
-        par.tauy1 = 0.18                                # income tax function parameter 2
-        par.tauh0 = 0.0092                              # bottom-bracket property tax rate
-        par.tauh1 = 0.03                                # top-bracket property tax rate
-        par.qh_bar = 3_040_000                          # top-bracket property tax threshold
-        par.rd_bar = 75_000                             # high tax value of interest deduction threshold
+        par.tau_y0 = 0.19                               # income tax function parameter 1    
+        par.tau_y1 = 0.18                               # income tax function parameter 2
+        par.tau_h0 = 0.0092                             # bottom-bracket property tax rate
+        par.tau_h1 = 0.03                               # top-bracket property tax rate
+        par.tau_r = 0.30                                # tax value of interest rate expenses
+        par.qh_bar = 3_040_000/par.median_income        # top-bracket property tax threshold
+        par.rd_bar = 75_000/par.median_income           # high tax value of interest deduction threshold
 
         # g. grids
         #par.Np = 50                                     # number of points in permanent income grid
@@ -132,10 +134,10 @@ class HAHModelClass(EconModelClass):
         par.htilde_max = 1.89                           # maximum rental house size
 
         par.Nd = 40                                     # number of points in mortgage balance grid beg
-        par.Nd_max = par.htilde_max                     # placeholder maximum mortgage size beg of period
+        par.d_max = par.htilde_max                     # placeholder maximum mortgage size beg of period
 
         par.Nd_prime = 80                               # number of points in mortgage balance grid post
-        par.Nd_prime_max = par.htilde_max               # placeholder maximum mortgage size post decision
+        par.d_prime_max = par.htilde_max               # placeholder maximum mortgage size post decision
         
         par.Nm = 100                                    # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
@@ -152,17 +154,17 @@ class HAHModelClass(EconModelClass):
         #
         #par.sigma_a0 = 0.1                              # standard dev. of initial assets
         #
-        #par.simN = 10_000                               # number of simulated agents
-        #par.sim_seed = 1995                             # seed for random number generator
-        #par.euler_cutoff = 0.02                         # euler error cutoff
+        par.simN = 10_000                               # number of simulated agents
+        par.sim_seed = 1995                             # seed for random number generator
+        par.euler_cutoff = 0.02                         # euler error cutoff
 
         # i. misc
-        par.solmethod = 'negm'                          # default solution method
+        #par.solmethod = 'negm'                          # default solution method
         par.t = 0                                       # initial time
         par.tol = 1e-12                                 # solution precision tolerance
         par.do_print = False                            # whether to print solution progress
         par.do_print_period = False                     # whether to print solution progress every period
-        par.do_marg_u = False                           # calculate marginal utility for use in egm
+        #par.do_marg_u = True                           # calculate marginal utility for use in egm
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
         par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
 
@@ -184,8 +186,8 @@ class HAHModelClass(EconModelClass):
         
         par = self.par
 
-        if par.solmethod == 'negm': 
-            par.do_marg_u = True                       # endogenous grid point method setting
+        #if par.solmethod == 'negm': 
+        #    par.do_marg_u = True                       # endogenous grid point method setting
 
         # a. beginning of period states (income is approxed by Np-state Markov Proces)
         par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='float32')
@@ -200,7 +202,6 @@ class HAHModelClass(EconModelClass):
         par.grid_a = equilogspace(0,par.a_max,par.Na)
         
         # c. shocks
-
             # i. persistent shock/permanent income states
         _out = log_rouwenhorst(par.rho_p,par.sigma_psi,par.Np)
         par.p_grid,par.p_trans,par.p_ergodic,par.p_trans_cumsum,par.p_ergodic_cumsum = _out
@@ -218,22 +219,10 @@ class HAHModelClass(EconModelClass):
         par.Nw = par.Nxi*par.Np
         par.w_grid = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
         par.w_trans = np.kron(par.xi_trans,par.p_trans)
-        par.w_trans_cumsum = np.cumsum(par.z_trans,axis=1)
-        par.w_ergodic = find_ergodic(par.z_trans)
-        par.w_ergodic_cumsum = np.cumsum(par.z_ergodic)
-        par.w_trans_T = par.z_trans.T
-
-        #shocks = create_PT_shocks(
-        #    sigma_psi=par.sigma_psi,
-        #    Npsi=par.Npsi,
-        #    sigma_xi=par.sigma_xi,
-        #    Nxi=par.Nxi,
-        #    sigma_epsilon=par.sigma_epsilon,
-        #    Nz=par.Nz,
-        #    gamma=par.gamma,
-        #    pi=par.pi,
-        #    )
-        #par.psi,par.psi_w,par.xi,par.xi_w,par.z,par.z_w,par.Nshocks = shocks
+        par.w_trans_cumsum = np.cumsum(par.p_trans,axis=1)
+        par.w_ergodic = find_ergodic(par.p_trans)
+        par.w_ergodic_cumsum = np.cumsum(par.p_ergodic)
+        par.w_trans_T = par.p_trans.T
 
         # d. set seed
         np.random.seed(par.sim_seed)
@@ -244,7 +233,7 @@ class HAHModelClass(EconModelClass):
         par.time_ref = np.zeros(par.T)
         par.time_buy = np.zeros(par.T)
         par.time_rent = np.zeros(par.T)
-        par.time_full = np.zeroz(par.T)
+        par.time_full = np.zeros(par.T)
 
     #############
     #   solve   #
@@ -320,21 +309,20 @@ class HAHModelClass(EconModelClass):
         sol.c_buy = np.zeros(own_shape)
         sol.h_buy = np.zeros(own_shape)
         sol.d_prime_buy = np.zeros(own_shape)
-        sol.Tda_prime_ref = np.zeros(own_shape)
+        sol.Tda_prime_buy = np.zeros(own_shape)
         sol.inv_v_buy = np.zeros(own_shape)
         #sol.inv_marg_u_adj = np.zeros(own_shape)
 
         # d. rent
         sol.c_rent = np.zeros(rent_shape)
-        sol.h_tilde = np.zeros(rent_shape)
+        sol.htilde = np.zeros(rent_shape)
             
         # e. post decision
-        post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Nda_bar,par.Nw)
+        post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
         sol.inv_w = np.nan*np.zeros(post_shape)
         sol.q = np.nan*np.zeros(post_shape)
         sol.q_c = np.nan*np.zeros(post_shape)
         sol.q_m = np.nan*np.zeros(post_shape)
-
 
     def solve(self,do_assert=True):
         """ solve the model using NEGM and NVFI
@@ -358,52 +346,48 @@ class HAHModelClass(EconModelClass):
                 par = model.par
                 sol = model.sol
                 
-                # i. last period
+                # a. last period
                 if t == par.T-1:
-
                     HHproblems.solve_last_period(t,sol,par)
-
+                
+                # add more asserts here!
                     if do_assert:
                         assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False))
                         assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False))
-                        assert np.all((sol.d_adj[t] >= 0) & (np.isnan(sol.d_adj[t]) == False))
+                        assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False))
                         assert np.all((sol.c_adj[t] >= 0) & (np.isnan(sol.c_adj[t]) == False))
                         assert np.all((sol.inv_v_adj[t] >= 0) & (np.isnan(sol.inv_v_adj[t]) == False))
 
-                # ii. all other periods
+                # b. all other periods
                 else:
                     
-                    # o. compute post-decision functions
+                    # i. compute post-decision functions
                     tic_w = time.time()
 
-                    if par.solmethod == 'nvfi':
-                        post_decision.compute_wq(t,sol,par)
-                    elif par.solmethod == 'negm': 
-                        post_decision.compute_wq(t,sol,par,compute_q=True)                
-                    else: 
-                        pass
+                    #if par.solmethod == 'negm': 
+                    HHproblems.post_decision_compute_wq(t,sol,par,compute_q=True)                
+                    #else: 
+                    #    pass
                     toc_w = time.time()
-                    par.time_w[t] = toc_w-tic_w
-                    if par.do_print and par.solmethod != 'vfi':
-                        print(f' w computed in {toc_w-tic_w:.1f} secs')
+                    par.time_wq[t] = toc_w-tic_w
+                    print(f' w and q computed in {toc_w-tic_w:.1f} secs')
 
-                    if do_assert and par.solmethod in ['nvfi','negm']:
-                        assert np.all((sol.inv_w[t] > 0) & (np.isnan(sol.inv_w[t]) == False)), t 
-                        if par.solmethod in ['negm']:                                                       
-                            assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
+                    if do_assert:
+                        assert np.all((sol.inv_w[t] > 0) & (np.isnan(sol.inv_w[t]) == False)), t                                                        
+                        assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
 
-                    # oo. solve stayer problem
+                    # ii. solve and time stayer problem
                     tic_stay = time.time()
                     
-                    if par.solmethod == 'vfi':
-                        vfi.solve_stay(t,sol,par)
-                    elif par.solmethod == 'nvfi':                
-                        nvfi.solve_stay(t,sol,par)
-                    elif par.solmethod == 'negm':
-                        negm.solve_stay(t,sol,par)                                     
-
+                    #if par.solmethod == 'vfi':
+                    #    vfi.solve_stay(t,sol,par)
+                    #elif par.solmethod == 'nvfi':                
+                    #    nvfi.solve_stay(t,sol,par)
+                    #elif par.solmethod == 'negm':
+                    HHproblems.solve_stay(t,sol,par)
                     toc_stay = time.time()
                     par.time_stay[t] = toc_stay-tic_stay
+                    
                     if par.do_print:
                         print(f' solved stayer problem in {toc_stay-tic_stay:.1f} secs')
 
@@ -411,40 +395,73 @@ class HAHModelClass(EconModelClass):
                         assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False)), t
                         assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False)), t
 
-                    # ooo. solve adjuster problem
-                    tic_adj = time.time()
-                    
-                    if par.solmethod == 'vfi':
-                        vfi.solve_adj(t,sol,par)
-                    elif par.solmethod in ['nvfi','negm']:
-                        nvfi.solve_adj(t,sol,par)                  
+                    # iii. solve and time refinance problem
+                    tic_ref = time.time()
+                    HHproblems.solve_ref(t,sol,par)                  
+                    toc_ref = time.time()
+                    par.time_ref[t] = toc_ref-tic_ref
 
-                    toc_adj = time.time()
-                    par.time_adj[t] = toc_adj-tic_adj
                     if par.do_print:
-                        print(f' solved adjuster problem in {toc_adj-tic_adj:.1f} secs')
+                        print(f' solved refinance problem in {toc_ref-tic_ref:.1f} secs')
 
                     if do_assert:
-                        assert np.all((sol.d_adj[t] >= 0) & (np.isnan(sol.d_adj[t]) == False)), t
-                        assert np.all((sol.c_adj[t] >= 0) & (np.isnan(sol.c_adj[t]) == False)), t
-                        assert np.all((sol.inv_v_adj[t] >= 0) & (np.isnan(sol.inv_v_adj[t]) == False)), t
+                        assert np.all((sol.c_ref[t] >= 0) & (np.isnan(sol.c_ref[t]) == False)), t
+                        assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False)), t
+                        assert np.all((sol.inv_v_ref[t] >= 0) & (np.isnan(sol.inv_v_ref[t]) == False)), t
+                    
+                    # iv. solve and time buyer problem
 
-                # iii. print
+                    tic_buy = time.time()
+                    HHproblems.solve_buy(t,sol,par)                  
+                    toc_buy = time.time()
+
+                    par.time_adj[t] = toc_buy-tic_buy
+                    if par.do_print:
+                        print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
+
+                    if do_assert:
+                        assert np.all((sol.c_buy[t] >= 0) & (np.isnan(sol.c_buy[t]) == False)), t
+                        assert np.all((sol.d_prime_buy[t] >= 0) & (np.isnan(sol.d_prime_buy[t]) == False)), t
+                        assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t]) == False)), t
+                        assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
+
+                    # v. solve and time renter problem
+
+                    tic_rent = time.time()
+                    HHproblems.solve_rent(t,sol,par)                  
+                    toc_rent = time.time()
+
+                    par.time_adj[t] = toc_rent-tic_rent
+                    if par.do_print:
+                        print(f' solved renter problem in {toc_rent-tic_rent:.1f} secs')
+
+                    if do_assert:
+                        assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False)), t
+                        assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False)), t
+                        assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False)), t
+
+                # c. print
                 toc = time.time()
                 total_solve_time += toc-tic
                 if par.do_print or par.do_print_period:
                     print(f' t = {t} solved in {toc-tic:.1f} secs')
+        
+        # print total timings
         if par.do_print:
-            print(f' total precomputation time  = {par.time_w.sum():.1f} secs')
+            print(f' total precomputation time  = {par.time_wq.sum():.1f} secs')
             print(f' total stay-time  = {par.time_stay.sum():.1f} secs')
-            print(f' total adj-time   = {par.time_adj.sum():.1f} secs')
+            print(f' total ref-time   = {par.time_ref.sum():.1f} secs')
+            print(f' total buy-time   = {par.time_buy.sum():.1f} secs')
+            print(f' total rent-time   = {par.time_rent.sum():.1f} secs')
+            print(f' full model solved in = {total_solve_time} secs')
 
     ################
     #   simulate   #
     ################
 
-    #f simulate_prep(self):
-    #  """ allocate memory for simulation """
+    def simulate_prep(self):
+        """ allocate memory for simulation """
+        pass
 
     #  par = self.par
     #  sim = self.sim
@@ -551,7 +568,6 @@ class HAHModelClass(EconModelClass):
     #    GenEq     #
     ################
 
-
     #prepare_hh_ss = steady_state.prepare_hh_ss
     #find_ss = steady_state.find_ss
 
@@ -559,20 +575,20 @@ class HAHModelClass(EconModelClass):
     #    Figures   #
     ################
 
-    def decision_functions(self):
-        figs.decision_functions(self)
-
-    def egm(self):        
-        figs.egm(self)
-
-    def lifecycle(self,quantiles=False):        
-        figs.lifecycle(self,quantiles=quantiles)
-
-    def mpc_over_cash_on_hand(self):
-        figs.mpc_over_cash_on_hand(self)
-
-    def mpc_over_lifecycle(self):
-        figs.mpc_over_lifecycle(self)
+#   def decision_functions(self):
+#       figs.decision_functions(self)
+#
+#   def egm(self):        
+#       figs.egm(self)
+#
+#   def lifecycle(self,quantiles=False):        
+#       figs.lifecycle(self,quantiles=quantiles)
+#
+#   def mpc_over_cash_on_hand(self):
+#       figs.mpc_over_cash_on_hand(self)
+#
+#   def mpc_over_lifecycle(self):
+#       figs.mpc_over_lifecycle(self)
 
 
     ################

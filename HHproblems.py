@@ -96,26 +96,35 @@ def solve_last_period(t,sol,par):
 ####################
 # 3. Post decision # 
 ####################
-
+@njit
+def postdecision_compute_wq(t,sol,par,compute_q=True):
+    pass
 
 ####################
 # 4. Stay problem  # 
 ####################
-
+@njit
+def solve_stay(t,sol,par):
+    pass 
 
 ####################
 # 5. Ref. problem  # 
 ####################
-
+@njit
+def solve_ref(t,sol,par):
+    pass 
 
 ####################
 # 6. Buy problem   # 
 ####################
-
+def solve_buy(t,sol,par):
+    pass
 
 ####################
 # 7. Rent problem   # 
 ####################
-
+@njit
+def solve_rent(t,sol,par):
+    pass
 
 
