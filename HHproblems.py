@@ -92,7 +92,6 @@ def solve_last_period(t,sol,par):
             inv_v_adj[i_p,i_x] = -1.0/v_adj
             inv_marg_u_adj[i_p,i_x] = 1.0/utility.marg_func(c_adj[i_p,i_x],d_adj[i_p,i_x],par)
 
-
 ####################
 # 3. Post decision # 
 ####################

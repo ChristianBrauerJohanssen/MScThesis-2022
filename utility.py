@@ -7,7 +7,7 @@ from numba import njit
 
 # felicity function
 @njit(fastmath=True)
-def func(c,h,move,rent,par,t):
+def func(c,h,move,rent,t,par):
     return func_nopar(c,h,move,rent,par.nu,par.rho,par.alpha,par.kappa,par.phi,par.n[t])
 
 @njit(fastmath=True)

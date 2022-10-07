@@ -17,7 +17,7 @@ import numpy as np
 import time
 
 # b. NumEconCph packages
-from EconModel import EconModelClass
+from EconModel import EconModelClass, jit
 #from GEModelTools import GEModelClass
 from consav import jit
 from consav.grids import equilogspace
