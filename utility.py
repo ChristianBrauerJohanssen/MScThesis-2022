@@ -33,3 +33,11 @@ def bequest_func(ab,par,t):
 @njit(fastmath=True)
 def bequest_func_nopar(ab,thetab,K,rho,n):
     return n*thetab/(1-rho)*((ab+K)**(1-rho))
+
+@njit(fastmath=True)
+def marg_bequest_func(ab,par,t):
+    return marg_bequest_func_nopar(ab,par.thetab,par.K,par.rho,par.n[t])
+
+@njit(fastmath=True)
+def marg_bequest_func_nopar(ab,thetab,K,rho,n):
+    return n*thetab*(ab+K)**(-rho)

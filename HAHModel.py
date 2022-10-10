@@ -168,9 +168,9 @@ class HAHModelClass(EconModelClass):
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
         par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
 
-        # l. indirect approach: targets for stationary equilibrium
-        par.r_ss_target = 0.03
-        par.w_ss_target = 1.0
+        # l. price guesses for stationary equilibrium
+        par.q = 1.0                                                     # house price guess
+        par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
 
     def allocate(self):
         """ allocate model """
@@ -318,11 +318,11 @@ class HAHModelClass(EconModelClass):
         sol.htilde = np.zeros(rent_shape)
             
         # e. post decision
-        post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
-        sol.inv_w = np.nan*np.zeros(post_shape)
+        post_shape = (par.T-1,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+        sol.inv_v_bar = np.nan*np.zeros(post_shape)
         sol.q = np.nan*np.zeros(post_shape)
-        sol.q_c = np.nan*np.zeros(post_shape)
-        sol.q_m = np.nan*np.zeros(post_shape)
+        sol.c_endo = np.nan*np.zeros(post_shape)
+        sol.m_endo = np.nan*np.zeros(post_shape)
 
     def solve(self,do_assert=True):
         """ solve the model using NEGM and NVFI
@@ -461,10 +461,9 @@ class HAHModelClass(EconModelClass):
 
     def simulate_prep(self):
         """ allocate memory for simulation """
-        pass
 
-    #  par = self.par
-    #  sim = self.sim
+        par = self.par
+        sim = self.sim
 
     #  # a. initial and final
     #  sim.p0 = np.zeros(par.simN)
@@ -499,7 +498,7 @@ class HAHModelClass(EconModelClass):
     #  sim.xi = np.zeros((par.T,par.simN))
     #  sim.z = np.zeros(par.T)    # economy wide shock
 
-    #f simulate(self,do_utility=False,do_euler_error=False):  #,seed=1998):
+    #def simulate(self,do_utility=False,do_euler_error=False):  #,seed=1998):
     #  """ simulate the model """
 
     #  par = self.par
@@ -594,3 +593,5 @@ class HAHModelClass(EconModelClass):
     ################
     #    Tables    #
     ################
+
+
