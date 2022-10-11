@@ -75,11 +75,11 @@ class HAHModelClass(EconModelClass):
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
         par.G = 1.02                                    # growth in permanent income
-        par.L = np.ones(par.T-1)                        # income profile placeholder
+        par.L = np.ones(par.T)                          # income profile placeholder
         par.L[0:par.Tr] = np.linspace(1,1/par.G,par.Tr) # hump shaped permanet income while working
         par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
         par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
-        par.n = np.ones(par.T-1)                        # placeholder for equivalence scale 
+        par.n = np.ones(par.T)                          # placeholder for equivalence scale 
 
         # c. income process
         par.rho_p = 0.96                                # AR(1) parameter
@@ -100,7 +100,7 @@ class HAHModelClass(EconModelClass):
         par.omega_dti = 5                               # debt-to-income ratio
         par.Cp_ref = 0.05                               # proportional refinancing cost
         par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
-        par.Td_bar = 30                                 # maximum regulatory mortgage term length
+        par.Td_bar = 1                                  # maximum regulatory mortgage term length
         par.Tda_bar = 1                                 # maximum terms with deferred amortisation
 
         # e. housing and rental markets
@@ -125,7 +125,7 @@ class HAHModelClass(EconModelClass):
         #par.p_min = 1e-4                                # minimum permanent income
         #par.p_max = 3.0                                 # maximum permanent income
 
-        par.Nh = 7                                      # number of points in owner occupied housing grid
+        par.Nh = 6                                      # number of points in owner occupied housing grid
         par.h_min = 1.42                                # minimum owner occupied houze size 
         par.h_max = 5.91                                # maximum owner occupied house size
 
@@ -133,7 +133,7 @@ class HAHModelClass(EconModelClass):
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
 
-        par.Nd = 40                                     # number of points in mortgage balance grid beg
+        par.Nd = 1                                     # number of points in mortgage balance grid beg
         par.d_max = par.htilde_max                     # placeholder maximum mortgage size beg of period
 
         par.Nd_prime = 80                               # number of points in mortgage balance grid post

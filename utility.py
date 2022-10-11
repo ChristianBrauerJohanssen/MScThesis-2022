@@ -22,8 +22,8 @@ def marg_func(c,par,t):
     return marg_func_nopar(c,par.nu,par.rho,par.n[t])
 
 @njit(fastmath=True)
-def marg_func_nopar(c,nu,rho,n,):
-    return (1-nu)(c/n)**(-rho)
+def marg_func_nopar(c,nu,rho,n):
+    return (1-nu)*(c/n)**(-rho)
 
 # bequest function
 @njit(fastmath=True)
