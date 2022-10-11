@@ -31,7 +31,18 @@ import mt
 #    return last
 
 @njit(parallel=True)
-def solve_last_period(t,sol,rent,par):
+def last_period_qv_bar(sol,rent,par):
+    """ compute post decision value function 
+    and marginal value of cash in last period """
+
+    # unpack containers
+    q = sol.q[-1]
+    inv_v_bar = sol.inv_v_bar[-1]
+
+    # 
+
+@njit(parallel=True)
+def solve_last_period(t,sol,par):
     """ solve the problem in the last period """ 
 
     # unpack
@@ -41,61 +52,77 @@ def solve_last_period(t,sol,rent,par):
     inv_v_stay = sol.inv_v_stay[t]
     inv_marg_u_stay = sol.inv_marg_u_stay[t]
     c_stay = sol.c_stay[t]
-    inv_v_adj = sol.inv_v_adj[t]
 
     inv_marg_u_rent = sol.inv_marg_u_rent[t]
     htilde = sol.htilde[t]
     c_rent = sol.c_rent[t]
+    c_endo_rent = np.zeros((par.Na,par.Nhtilde)) 
+    m_endo_rent = np.zeros((par.Na,par.Nhtilde))
 
-    # a. stay
-    for i_h in prange(par.Nh):
-        # i. states
-        h = par.grid_n[i_h]
-        for i_a in prange(par.Na):
-            # i. states
-            a = par.grid_a[i_a]
-            ab_plus = (1+par.r)*a - (1-par.C_sell-par.delta)*par.q*h - mt.property_tax(par.q,h)
-            
-            # back out optimal consumption 
-            c_endo[a,h] = ((1+r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K)
-            m_endo[a,h] = a + c_endo[a,h]
+    # a. stay - loop over states
+    for i_w in prange(par.Nw):
+        for i_d in prange(par.Nd): 
+            for i_Tda in prange(par.Tda_bar):
+                for i_Td in prange(par.Td_bar):
+                    for i_h in prange(par.Nh):
 
-            #post_shape: (par.T-1,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+                       # i. temporary container and states
+                       v_ast_vec = np.zeros(par.Nm)
+                       h = par.grid_h[i_h]
 
-            # interpolate with upper envelope step 
-            negm_upperenvelope = upperenvelope.create(utility.func,use_inv_w=True)
-       
-            # ii. optimal choice
-            c_stay[i_p,i_n,i_m] = m
-         # iii. optimal value
-            v_stay = utility.func(c_stay[i_p,i_n,i_m],n,par)
-            inv_v_stay[i_p,i_n,i_m] = -1.0/v_stay
-            inv_marg_u_stay[i_p,i_n,i_m] = 1.0/utility.marg_func(c_stay[i_p,i_n,i_m],n,par)
+                       for i_a in prange(par.Na):
+                           a = par.grid_a[i_a]
+                           ab_plus = trans.ab_plus_func(a,h,par)
 
-    # b. rent
-    for i_ht in prange(par.Nhtilde):
-        for i_x in range(par.Nx):
-            
-            # i. states
-            x = par.grid_x[i_x]
+                           # compute implied post decision
+                           sol.inv_v_bar[t,i_a,i_h,i_d,i_Td,i_Tda,i_w] = -1/par.beta*utility.bequest_func(ab_plus,par,t)
 
-            if x == 0: # forced c = d = 0
-                d_adj[i_p,i_x] = 0
-                c_adj[i_p,i_x] = 0
-                inv_v_adj[i_p,i_x] = 0
-                inv_marg_u_adj[i_p,i_x] = 0
-                continue
+                           # back out optimal consumption 
+                           c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = ((1+par.r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K)
+                           m_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = a + c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w]
 
-            # ii. optimal choices
-            d_low = np.fmin(x/2,1e-8)
-            d_high = np.fmin(x,par.n_max)            
-            d_adj[i_p,i_x] = golden_section_search.optimizer(obj_last_period,d_low,d_high,args=(x,par),tol=par.tol)
-            c_adj[i_p,i_x] = x-d_adj[i_p,i_x]
+                       # ii. prepare upper envelope step 
+                       negm_upperenvelope = upperenvelope.create(utility.func,use_inv_w=True)
 
-            # iii. optimal value
-            v_adj = -obj_last_period(d_adj[i_p,i_x],x,par)
-            inv_v_adj[i_p,i_x] = -1.0/v_adj
-            inv_marg_u_adj[i_p,i_x] = 1.0/utility.marg_func(c_adj[i_p,i_x],d_adj[i_p,i_x],par)
+                       # iii. interpolate from post decision space to beginning of period states
+                       move = 0
+                       rent = 0
+                       negm_upperenvelope(par.grid_a,m_endo[:,i_h,i_d,i_Td,i_Tda,i_w],c_endo[:,i_h,i_d,i_Td,i_Tda,i_w],
+                        sol.inv_v_bar[t,:,h],par.grid_m,c_stay[:,i_h,i_d,i_Td,i_Tda,i_w],v_ast_vec,h,move,rent,t,par)
+
+                       # iv. optimal value and negative inverse 
+                       for i_m in range(par.Nm): 
+                           inv_v_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w] = -1/v_ast_vec[i_m]
+                           inv_marg_u_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 1/utility.marg_func(c_stay[i_m,i_h,:,:],n,par)
+
+#own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+#rent_shape = (par.T,par.Nm,par.Nw)
+#post_shape = (par.T-1,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+
+    ## b. rent
+    #for i_ht in prange(par.Nhtilde):
+    #    
+    #    # i. temporary container and states
+    #    v_ast_vec = np.zeros(par.Nm)
+    #    htilde = par.grid_htilde[i_ht]
+#
+    #    for i_a in range(par.Na):
+    #        
+    #        # i. states
+    #        a = par.grid_a[i_a]
+    #        ab_plus = trans.ab_plus_func(a,0,par)
+#
+    #        # ii. optimal choices
+    #        d_low = np.fmin(x/2,1e-8)
+    #        d_high = np.fmin(x,par.n_max)            
+    #        d_adj[i_p,i_x] = golden_section_search.optimizer(obj_last_period,d_low,d_high,args=(x,par),tol=par.tol)
+    #        c_adj[i_p,i_x] = x-d_adj[i_p,i_x]
+#
+    #        # iii. optimal value
+    #        v_adj = -obj_last_period(d_adj[i_p,i_x],x,par)
+    #        inv_v_adj[i_p,i_x] = -1.0/v_adj
+    #        inv_marg_u_adj[i_p,i_x] = 1.0/utility.marg_func(c_adj[i_p,i_x],d_adj[i_p,i_x],par)
+
 
 ####################
 # 3. Post decision # 

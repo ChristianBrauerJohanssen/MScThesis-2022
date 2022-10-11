@@ -66,9 +66,9 @@ class HAHModelClass(EconModelClass):
         par.phi = 0.85                                  # scaling of housing services from rent
         par.kappa = 0.34                                # disutility of moving
         par.thetab = 100                                # strength of bequest motive 
-        par.Κ = 7.7                                     # extent of bequest as luxury
+        par.K = 7.7                                     # extent of bequest as luxury
         par.zeta = 0.8                                  # disutility of default
-    
+        
         # b. demographics and life cycle profile
         par.median_income = 350_000                     # 
         par.Tmin = 25                                   # age when entering the model
@@ -101,7 +101,7 @@ class HAHModelClass(EconModelClass):
         par.Cp_ref = 0.05                               # proportional refinancing cost
         par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
         par.Td_bar = 30                                 # maximum regulatory mortgage term length
-        par.Tda_bar = 0                                 # maximum terms with deferred amortisation
+        par.Tda_bar = 1                                 # maximum terms with deferred amortisation
 
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
@@ -292,33 +292,33 @@ class HAHModelClass(EconModelClass):
         # a. shapes
         own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
         rent_shape = (par.T,par.Nm,par.Nw)
+        post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
 
-        # a. stay        
+        # b. stay        
         sol.c_stay = np.zeros(own_shape)
         sol.inv_v_stay = np.zeros(own_shape)
         sol.inv_marg_u_stay = np.zeros(own_shape)
 
-        # b. refinance
+        # c. refinance
         sol.c_ref = np.zeros(own_shape)
         sol.d_prime_ref = np.zeros(own_shape)
         sol.Tda_prime_ref = np.zeros(own_shape)     # distinguish between beg and end Tda?
         sol.inv_v_ref = np.zeros(own_shape)
-        #sol.inv_marg_u_ref = np.zeros(own_shape)
 
-        # c. buy
+        # d. buy
         sol.c_buy = np.zeros(own_shape)
         sol.h_buy = np.zeros(own_shape)
         sol.d_prime_buy = np.zeros(own_shape)
         sol.Tda_prime_buy = np.zeros(own_shape)
         sol.inv_v_buy = np.zeros(own_shape)
-        #sol.inv_marg_u_adj = np.zeros(own_shape)
 
-        # d. rent
+        # e. rent
         sol.c_rent = np.zeros(rent_shape)
         sol.htilde = np.zeros(rent_shape)
+        sol.inv_v_rent = np.zeros(rent_shape)
+        sol.inv_marg_u_rent = np.zeros(rent_shape)
             
-        # e. post decision
-        post_shape = (par.T-1,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+        # f. post decision
         sol.inv_v_bar = np.nan*np.zeros(post_shape)
         sol.q = np.nan*np.zeros(post_shape)
         sol.c_endo = np.nan*np.zeros(post_shape)
