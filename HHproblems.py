@@ -33,9 +33,12 @@ def last_period_v_bar_q(t,sol,par):
     q_stay = sol.q_stay[t]
     q_rent = sol.q_rent[t]
 
+    # b. find terminal periods
+    Td_max = mt.Td_func(t,par)
+
     # c. compute post decision given by bequest 
     for i_Tda in prange(2):
-        for i_Td in prange(2):
+        for i_Td in prange(Td_max-par.Td_bar):
             for i_h in range(par.Nh+1):
                 
                 # own or rent?
@@ -46,14 +49,14 @@ def last_period_v_bar_q(t,sol,par):
 
                 # find maximum loan size
                 i_dmax = 0
-                while par.grid_d[i_dmax] < h:
+                while par.grid_d[i_dmax] < par.q*h:
                     i_dmax += 1
                     
                 for i_d in prange(i_dmax+1):    
                     for i_a in prange(par.Na):
                         
                         # mortgage? 
-                        if i_Td == 0: 
+                        if i_Td < t: 
                             d = 0
                         else: 
                             d = par.grid_d[i_d]
@@ -65,8 +68,8 @@ def last_period_v_bar_q(t,sol,par):
                         # compute negative inverse post decision function
                         ab = trans.ab_plus_func(a,d,Tda,h,par)
                         inv_v_bar[i_a,i_h,i_d,i_Td,i_Tda,:] = -1/utility.bequest_func(ab,par)
-                        q_stay[i_a,i_h,i_d,i_Td,i_Tda,:] = utility.marg_bequest_func(ab,par)
-                        q_rent[i_a,i_h,i_d,i_Td,i_Tda,:] = utility.marg_bequest_func(ab,par)
+                        q_stay[i_a,i_h,i_d,i_Td,i_Tda,:] = par.r*par.beta*utility.marg_bequest_func(ab,par)
+                        q_rent[i_a,i_h,i_d,i_Td,i_Tda,:] = par.r*par.beta*utility.marg_bequest_func(ab,par)
                         # ((1+par.r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K) 
 
 ####################
@@ -172,17 +175,19 @@ def postdecision_compute_wq(t,sol,par,compute_q=True):
 # 4. Stay problem  # 
 ####################
 @njit
-def solve_stay(t,sol,par):
-    pass 
+def solve_stay(t,sol,par): 
 
+    # unpack solution arrays
+    c_endo = sol.c_endo[t]
+    m_endo = sol.m_endo[t]
+    inv_v_bar = sol.inv_v_bar[t]
+    q_stay = sol.q_stay[t]
+#post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
 
-    #c_endo = sol.c_endo[t]
-    #m_endo = sol.m_endo[t]
+    inv_v_stay = sol.inv_v_stay[t]
+    inv_marg_u_stay = sol.inv_marg_u_stay[t]
+    c_stay = sol.c_stay[t]
     
-    #inv_v_stay = sol.inv_v_stay[t]
-    #inv_marg_u_stay = sol.inv_marg_u_stay[t]
-    #c_stay = sol.c_stay[t]
-    #
     #inv_v_rent = sol.inv_v_rent[t]
     #inv_marg_u_rent = sol.inv_marg_u_rent[t]
     #htilde = sol.htilde[t]
@@ -191,55 +196,51 @@ def solve_stay(t,sol,par):
     #m_endo_rent = sol.m_endo_rent[t] 
     #inv_v_bar_rent = np.zeros(par.Na,par.Nhtilde,par.Nw)
 
-    ## b. set counter and restrict loops
-    #count = 0                           # initiate counter
-    #Td = mt.Td_func(t,par)              # find relevant term lengths
-    #Td_min = np.fmax(1,t-Td)
-    #Td_max = np.fmin(par.T,t+Td)
+    # b. set counter and restrict loops
+    count = 0                           # initiate counter
+    Td = mt.Td_func(t,par)              # find current terminal mortgage period
+    Td_max = np.fmin(par.T,t+Td)        # cap at death
 
-#    # b. last period stay
-#    for i_w in prange(par.Nw):
-#        for i_d in prange(par.Nd): 
-#            for i_Tda in prange(np.fmax(par.Tda_bar,Td_max)):
-#                for i_Td in prange(Td_min,Td_max+1):
-#                    for i_h in prange(par.Nh):
-#                        count = count+1
-#                        if count%100 == 0: 
-#                            print(f'Iteration no. {count}')#
+    # b. loop through states
+    for i_w in prange(par.Nw):
+        for i_d in prange(par.Nd): 
+            for i_Tda in prange(1): #np.fmax(par.Tda_bar,Td_max)):
+                for i_Td in prange(par.Td_bar,Td_max):
+                    for i_h in prange(par.Nh):
+                        count = count+1
+                        if count%100 == 0: 
+                            print(f'Iteration no. {count}')#
 
-#                        # i. temporary container and states
-#                        v_ast_vec = np.zeros(par.Nm)
-#                        h = par.grid_h[i_h]#
+                        # i. temporary container and states
+                        v_ast_vec = np.zeros(par.Nm)
+                        h = par.grid_h[i_h]#
 
-#                        for i_a in prange(par.Na):
-#                            # assets and bequest
-#                            a = par.grid_a[i_a]
-#                            ab_plus = trans.ab_plus_func(a,h,par)
-# 
-#                            # compute neg inverse of implied post decision
-#                            inv_v_bar[i_a,i_h,i_d,i_Td,i_Tda,i_w] = -1/par.beta*utility.bequest_func(ab_plus,par,t)
-# 
-#                            # back out optimal consumption 
-#                            c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = ((1+par.r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K)
-#                            m_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = a + c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w]
-# 
-#                        # ii. interpolate from post decision space to beginning of period states
-#                        move = 0
-#                        rent = 0
-#                        negm_upperenvelope(par.grid_a,m_endo[:,i_h,i_d,i_Td,i_Tda,i_w],c_endo[:,i_h,i_d,i_Td,i_Tda,i_w],
-#                         inv_v_bar[:,i_h,i_d,i_Td,i_Tda,i_w],par.grid_m,c_stay[:,i_h,i_d,i_Td,i_Tda,i_w],
-#                         v_ast_vec,h,move,rent,t,par)
-# 
-#                        # iii. optimal value and negative inverse 
-#                        for i_m in range(par.Nm): 
-#                            inv_v_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w] = -1/v_ast_vec[i_m]
-#                            inv_marg_u_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 1/utility.marg_func_nopar(c_stay[i_m,i_h,i_d,i_Td,
-#                                                                                                    i_Tda,i_w],par.nu,
-#                                                                                                    par.rho,par.n[t])
+                        for i_a in prange(par.Na):
+                            ## assets and bequest
+                            a = par.grid_a[i_a]
+ 
+                            ## back out optimal consumption 
+                            c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = par.n[t]*(q_stay[i_a,i_h,i_d,i_Td,i_Tda,i_w]/(1-par.nu))**(1/-par.rho)
+                            m_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = a + c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w]
+                            #((1+par.r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K)
+                            
+                        # ii. interpolate from post decision space to beginning of period states
+                        move = 0
+                        rent = 0
+                        negm_upperenvelope(par.grid_a,m_endo[:,i_h,i_d,i_Td,i_Tda,i_w],c_endo[:,i_h,i_d,i_Td,i_Tda,i_w],
+                         inv_v_bar[:,i_h,i_d,i_Td,i_Tda,i_w],par.grid_m,c_stay[:,i_h,i_d,i_Td,i_Tda,i_w],
+                         v_ast_vec,h,move,rent,t,par)
+ 
+                        # iii. optimal value and negative inverse 
+                        for i_m in range(par.Nm): 
+                            inv_v_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w] = -1/v_ast_vec[i_m]
+                            inv_marg_u_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 1/utility.marg_func_nopar(c_stay[i_m,i_h,i_d,i_Td,
+                                                                                                    i_Tda,i_w],par.nu,
+                                                                                                    par.rho,par.n[t])
 
 #own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
 #rent_shape = (par.T,par.Nm,par.Nw)
-#post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+#post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
 
     ## b. rent
     #for i_ht in prange(par.Nhtilde):
@@ -298,6 +299,11 @@ def solve_buy(t,sol,par):
 ####################
 @njit
 def solve_rent(t,sol,par):
-    pass
+
+    # unpack solution arrays
+    c_endo_rent = sol.c_endo_rent[t]
+    m_endo_rent = sol.m_endo_rent[t]
+    inv_v_bar = sol.inv_v_bar[t]
+    q_rent = sol.q_rent[t,:,]
 
 
