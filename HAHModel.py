@@ -100,8 +100,8 @@ class HAHModelClass(EconModelClass):
         par.omega_dti = 5                               # debt-to-income ratio
         par.Cp_ref = 0.05                               # proportional refinancing cost
         par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
-        par.Td_bar = 1                                  # maximum regulatory mortgage term length
-        par.Tda_bar = 1                                 # maximum terms with deferred amortisation
+        par.Td_bar = 10                                  # maximum regulatory mortgage term length
+        par.Tda_bar = 10                                 # maximum terms with deferred amortisation
 
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
@@ -133,11 +133,11 @@ class HAHModelClass(EconModelClass):
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
 
-        par.Nd = 1                                     # number of points in mortgage balance grid beg
-        par.d_max = par.htilde_max                     # placeholder maximum mortgage size beg of period
+        par.Nd = 10                                     # number of points in mortgage balance grid beg
+        par.d_max = par.h_max                           # placeholder maximum mortgage size beg of period
 
         par.Nd_prime = 80                               # number of points in mortgage balance grid post
-        par.d_prime_max = par.htilde_max               # placeholder maximum mortgage size post decision
+        par.d_prime_max = par.h_max                     # placeholder maximum mortgage size post decision
         
         par.Nm = 100                                    # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
@@ -292,7 +292,7 @@ class HAHModelClass(EconModelClass):
         # a. shapes
         own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
         rent_shape = (par.T,par.Nm,par.Nw)
-        post_shape = (par.T,par.Na,par.Nh,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
+        post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
 
         # b. stay        
         sol.c_stay = np.zeros(own_shape)
@@ -319,10 +319,21 @@ class HAHModelClass(EconModelClass):
         sol.inv_marg_u_rent = np.zeros(rent_shape)
             
         # f. post decision
-        sol.inv_v_bar = np.nan*np.zeros(post_shape)
-        sol.q = np.nan*np.zeros(post_shape)
+        sol.inv_v_bar_stay = np.nan*np.zeros(post_shape)
+        sol.inv_v_bar_ref = np.nan*np.zeros(post_shape)
+        sol.inv_v_bar_buy = np.nan*np.zeros(post_shape)
+        sol.inv_v_bar_rent = np.nan*np.zeros(post_shape)
+        sol.q_stay = np.nan*np.zeros(post_shape)
+        sol.q_rent = np.nan*np.zeros(post_shape)
         sol.c_endo = np.nan*np.zeros(post_shape)
         sol.m_endo = np.nan*np.zeros(post_shape)
+        sol.c_endo_rent = np.nan*np.zeros((par.Na,par.Nhtilde)) 
+        sol.m_endo_rent = np.nan*np.zeros((par.Na,par.Nhtilde))
+
+        # g. overarching 
+        sol.inv_v_bar = np.nan*np.zeros(post_shape)
+        #sol.v
+        #sol.c 
 
     def solve(self,do_assert=True):
         """ solve the model using NEGM and NVFI
@@ -348,7 +359,7 @@ class HAHModelClass(EconModelClass):
                 
                 # a. last period
                 if t == par.T-1:
-                    HHproblems.solve_last_period(t,sol,par)
+                    HHproblems.last_period_v_bar(t,sol,par)
                 
                 # add more asserts here!
                     if do_assert:
@@ -372,9 +383,9 @@ class HAHModelClass(EconModelClass):
                     par.time_wq[t] = toc_w-tic_w
                     print(f' w and q computed in {toc_w-tic_w:.1f} secs')
 
-                    if do_assert:
-                        assert np.all((sol.inv_w[t] > 0) & (np.isnan(sol.inv_w[t]) == False)), t                                                        
-                        assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
+                    #if do_assert:
+                    #    assert np.all((sol.inv_v_bar_stay[t] > 0) & (np.isnan(sol.inv_bar_[t]) == False)), t                                                        
+                    #    assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
 
                     # ii. solve and time stayer problem
                     tic_stay = time.time()

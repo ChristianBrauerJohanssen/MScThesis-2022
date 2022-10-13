@@ -59,5 +59,9 @@ def d_plus_func(q,h,d,w,move,ref,t,Td,Tda,par):
     return d_plus
 
 @njit(fastmath=True)
-def ab_plus_func(a,h,par):
-    return (1+par.r)*a + (1-par.C_sell-par.delta)*par.q*h - mt.property_tax(par.q,h,par)
+def ab_plus_func(a,d,Tda,h,par):
+    if Tda > 0:
+        r = par.r_da
+    else: 
+        r = par.r_m
+    return (1+par.r)*a + (1-par.C_sell-par.delta)*par.q*h - mt.property_tax(par.q,h,par) - (1+r)*d

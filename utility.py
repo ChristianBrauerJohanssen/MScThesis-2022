@@ -27,17 +27,17 @@ def marg_func_nopar(c,nu,rho,n):
 
 # bequest function
 @njit(fastmath=True)
-def bequest_func(ab,par,t):
-    return bequest_func_nopar(ab,par.thetab,par.K,par.rho,par.n[t])
+def bequest_func(ab,par):
+    return bequest_func_nopar(ab,par.thetab,par.K,par.rho,par)
 
 @njit(fastmath=True)
 def bequest_func_nopar(ab,thetab,K,rho,n):
-    return n*thetab/(1-rho)*((ab+K)**(1-rho))
+    return thetab/(1-rho)*((ab+K)**(1-rho))
 
 @njit(fastmath=True)
-def marg_bequest_func(ab,par,t):
-    return marg_bequest_func_nopar(ab,par.thetab,par.K,par.rho,par.n[t])
+def marg_bequest_func(ab,par):
+    return marg_bequest_func_nopar(ab,par.thetab,par.K,par.rho)
 
 @njit(fastmath=True)
-def marg_bequest_func_nopar(ab,thetab,K,rho,n):
-    return n*thetab*(ab+K)**(-rho)
+def marg_bequest_func_nopar(ab,thetab,K,rho):
+    return thetab*(ab+K)**(-rho)
