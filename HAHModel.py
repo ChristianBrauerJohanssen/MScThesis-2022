@@ -139,10 +139,10 @@ class HAHModelClass(EconModelClass):
         par.Nd_prime = 80                               # number of points in mortgage balance grid post
         par.d_prime_max = par.h_max                     # placeholder maximum mortgage size post decision
         
-        par.Nm = 100                                    # number of points in cash on hand grid
+        par.Nm = 50                                    # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
     
-        par.Na = 200                                    # number of points in assets grid
+        par.Na = 100                                    # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets
 
         ## h. simulation
@@ -359,15 +359,18 @@ class HAHModelClass(EconModelClass):
                 
                 # a. last period
                 if t == par.T-1:
-                    HHproblems.last_period_v_bar(t,sol,par)
+                    HHproblems.last_period_v_bar_q(t,sol,par)
                 
-                # add more asserts here!
+                ## add more asserts here and slice properly!
                     if do_assert:
                         assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False))
                         assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False))
                         assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False))
-                        assert np.all((sol.c_adj[t] >= 0) & (np.isnan(sol.c_adj[t]) == False))
-                        assert np.all((sol.inv_v_adj[t] >= 0) & (np.isnan(sol.inv_v_adj[t]) == False))
+                        assert np.all((sol.d_prime_buy[t] >= 0) & (np.isnan(sol.d_prime_buy[t]) == False))
+                        assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t] == False)))
+                        assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False))
+                        assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False))
+                        assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False))
 
                 # b. all other periods
                 else:
@@ -426,7 +429,7 @@ class HAHModelClass(EconModelClass):
                     HHproblems.solve_buy(t,sol,par)                  
                     toc_buy = time.time()
 
-                    par.time_adj[t] = toc_buy-tic_buy
+                    par.time_buy[t] = toc_buy-tic_buy
                     if par.do_print:
                         print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
 
@@ -442,7 +445,7 @@ class HAHModelClass(EconModelClass):
                     HHproblems.solve_rent(t,sol,par)                  
                     toc_rent = time.time()
 
-                    par.time_adj[t] = toc_rent-tic_rent
+                    par.time_rent[t] = toc_rent-tic_rent
                     if par.do_print:
                         print(f' solved renter problem in {toc_rent-tic_rent:.1f} secs')
 
