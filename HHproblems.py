@@ -316,9 +316,11 @@ def solve_ref(t,sol,par):
 
                     d_prime_ref = golden_section_search.optimizer(obj_ref,d_prime_low,d_prime_high,args=(x,inv_v_stay[i_p],grid_n,grid_m),tol=par.tol)
                     Tda_choice = 0
+                    
                     # ooooo. optimal value
-                    m = x - d[i_p,i_x]
+                    m_net = m  # refinancer's net cash on hand equation
                     c_ref[i_m,i_h,i_d,] = linear_interp.interp_2d(par.grid_n,par.grid_m,c_stay[i_p],d[i_p,i_x],m)
+
                     inv_v_ref[i_p,i_x] = -obj_ref(d[i_p,i_x],x,inv_v_keep[i_p],grid_n,grid_m)
                     inv_marg_u_ref[i_p,i_x] = 1/utility.marg_func_nopar(c_ref[i_p,i_x],nu,rho,n)
 
@@ -327,20 +329,21 @@ def solve_ref(t,sol,par):
 # 6. Buy problem   # 
 ####################
 @njit
-def obj_buy(d,Tda,i_h,i_Td,i_w,m,inv_v_keep,grid_m,grid_h,grid_d_prime,grid_Tda,kappa):
+def obj_buy(d_prime,Tda,h_buy,i_Td,i_w,m,inv_v_keep,grid_m,grid_h,grid_d_prime,grid_Tda,kappa):
     """ evaluate bellman equation """
 
     # a. net cash-on-hand
     m_net = m
 
+    # index of housing choice
+    
     # b. slice value function
-    inv_v_keep_slice = inv_v_keep[:,i_h,:,i_Td,:,i_w]
+    inv_v_keep_slice = inv_v_keep[:,:,:,i_Td,:,i_w]
     # own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
     
     # c. value-of-choice
-    return -(linear_interp.interp_4d(grid_m,grid_d_prime,grid_Tda,grid_h,
-                                    inv_v_keep_slice,m_net,d,Tda)-kappa)  # we are minimizing
-
+    return -(linear_interp.interp_4d(grid_m,grid_h,grid_d_prime,grid_Tda,
+                                    inv_v_keep_slice,m_net,h_buy,d_prime,Tda)-kappa)  # we are minimizing
 
 def solve_buy(t,sol,par):
     
@@ -373,68 +376,99 @@ def solve_buy(t,sol,par):
                         if i_h == 0: 
                             h = 0
                         else: 
-                            h = par.grid_h[i_h-1]
-    
+                            h = grid_h[i_h-1]
 
+                        # ii. loop over cash on hand state
+                        for i_m in prange(par.Nm):
+                            
+                            # o. compute net cash on hand
+                            m = grid_m[i_m]
+                            m_net = trans.m_plus_func_buy()
+                    
+                            # oo. enforce non-negativity constraint
+                            if m_net <= 0:
+                                d_prime_buy[i_m,i_h,i_d,:,:,i_w] = 0
+                                c_buy[i_m,i_h,i_d,:,:,i_w] = 0
+                                inv_v_buy[i_m,i_h,i_d,:,:,i_w] = 0
+                                h_buy[i_m,i_h,i_d,:,:,i_w] = 0 # how to force renting???
+                                inv_marg_u_buy[i_m,i_h,i_d,:,:,i_w] = 0        
+                                continue
+                            
+                            # ooo. terminal mortgage period
+                            Td = mt.Td_func(t,par)
+                            i_Td = Td - par.Td_bar
+
+                            # oooo. optimal choice of mortgage plan and house size
+                            for i_hb in prange(par.Nh):
+                                h_buy = grid_h[i_h]
+                                d_prime_low = 0
+                                d_prime_high = np.fmax(par.omega_ltv*par.q*h,par.omega_dti*w) # enforce financial regulation
+                                grid_Tda = range(1,par.Tda+1) # periods of deferred amortisation
+
+                            d_prime_ref = golden_section_search.optimizer(obj_ref,d_prime_low,d_prime_high,args=(x,inv_v_stay[i_p],grid_n,grid_m),tol=par.tol)
+                            Tda_choice = 0
+
+                            # ooooo. optimal value
+                            m_net = m # buyer's net cash on hand equation 
+                            c_buy[i_m,i_h,i_d,] = linear_interp.interp_2d(par.grid_n,par.grid_m,c_stay[i_p],d[i_p,i_x],m)
+                            d_prime_buy = 0
+                            Tda_buy = 0
+                            inv_v_buy[i_p,i_x] = -obj_ref(d[i_p,i_x],x,inv_v_keep[i_p],grid_n,grid_m)
+                            inv_marg_u_buy[i_p,i_x] = 1/utility.marg_func_nopar(c_ref[i_p,i_x],nu,rho,n)
+
+                        
 ####################
 # 7. Rent problem   # 
 ####################
 @njit
 def solve_rent(t,sol,par):
     pass 
-   ## unpack solution arrays
-   #c_endo_rent = sol.c_endo_rent[t]
-   #m_endo_rent = sol.m_endo_rent[t]
-   #inv_v_bar = sol.inv_v_bar[t]
-   #q_rent = sol.q_rent[t,:,]
+    # unpack solution arrays
+    c_endo_rent = sol.c_endo_rent[t]
+    m_endo_rent = sol.m_endo_rent[t]
+    inv_v_bar = sol.inv_v_bar[t]
+    q_rent = sol.q_rent[t,:,]
 
+    # unpack 
+    inv_v_rent = sol.inv_v_rent[t]
+    inv_marg_u_rent = sol.inv_marg_u_rent[t]
+    htilde = sol.htilde[t]
+    c_rent = sol.c_rent[t]
+    c_endo_rent = sol.c_endo_rent[t] 
+    m_endo_rent = sol.m_endo_rent[t] 
+    inv_v_bar_rent = np.zeros(par.Na,par.Nhtilde,par.Nw)
+    for i_ht in prange(par.Nhtilde):
+        
+        # i. temporary container and states
+        v_ast_vec = np.zeros(par.Nm)
+        htilde = par.grid_htilde[i_ht]
+        
+        for i_a in range(par.Na):
+            
+            # assets and bequest
+            a = par.grid_a[i_a]
+            ab_plus = trans.ab_plus_func(a,0,par)
+            
+            # compute implied post decision
+            inv_v_bar_rent[i_a,i_h,i_w] = -1/par.beta*utility.bequest_func(ab_plus,par,t)
+            # back out optimal consumption 
+            c_endo_rent[i_a,i_ht] = ((1+par.r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K)
+            m_endo_rent[i_a,i_ht] = a + c_endo[i_a,i_ht]
 
+        # ii. interpolate from post decision space to beginning of period states
+        move = 0
+        rent = 1
+        negm_upperenvelope(par.grid_a,m_endo[:,i_h,i_d,i_Td,i_Tda,i_w],c_endo_rent[:,i_ht,i_w],
+         inv_v_bar_rent[:,i_ht,i_w],par.grid_m,c_rent[:,i_ht,i_w],
+         v_ast_vec,htilde,move,rent,t,par)
 
-    ## b. rent
-
-    ## unpack 
-    #inv_v_rent = sol.inv_v_rent[t]
-    #inv_marg_u_rent = sol.inv_marg_u_rent[t]
-    #htilde = sol.htilde[t]
-    #c_rent = sol.c_rent[t]
-    #c_endo_rent = sol.c_endo_rent[t] 
-    #m_endo_rent = sol.m_endo_rent[t] 
-    #inv_v_bar_rent = np.zeros(par.Na,par.Nhtilde,par.Nw)
-
-
-    #for i_ht in prange(par.Nhtilde):
-    #    
-    #    # i. temporary container and states
-    #    v_ast_vec = np.zeros(par.Nm)
-    #    htilde = par.grid_htilde[i_ht]
-    #    
-    #    for i_a in range(par.Na):
-    #        
-    #        # assets and bequest
-    #        a = par.grid_a[i_a]
-    #        ab_plus = trans.ab_plus_func(a,0,par)
-    #        
-    #        # compute implied post decision
-    #        inv_v_bar_rent[i_a,i_h,i_w] = -1/par.beta*utility.bequest_func(ab_plus,par,t)
-
-    #        # back out optimal consumption 
-    #        c_endo_rent[i_a,i_ht] = ((1+par.r)*par.beta*par.thetab/(1-par.nu))**(1/-par.rho)*par.n[t]*(ab_plus+par.K)
-    #        m_endo_rent[i_a,i_ht] = a + c_endo[i_a,i_ht]
-
-    #    # ii. interpolate from post decision space to beginning of period states
-    #    move = 0
-    #    rent = 1
-    #    negm_upperenvelope(par.grid_a,m_endo[:,i_h,i_d,i_Td,i_Tda,i_w],c_endo_rent[:,i_ht,i_w],
-    #     inv_v_bar_rent[:,i_ht,i_w],par.grid_m,c_rent[:,i_ht,i_w],
-    #     v_ast_vec,htilde,move,rent,t,par)
-
-    #    # iii. optimal value and negative inverse 
-    #    for i_m in range(par.Nm): 
-    #        inv_v_rent[i_m,i_ht,i_w] = -1/v_ast_vec[i_m]
-    #        inv_marg_u_rent[i_m,i_ht,i_w] = 1/utility.marg_func_nopar(c_rent[i_m,i_ht,i_w],par.nu,par.rho,par.n[t])
-    #        
-    #    # iii. optimal value
-    #    v_adj = 0
-    #    inv_v_rent[i_p,i_x] = -1.0/v_adj
-    #    inv_marg_u_rent[i_p,i_x] = 1.0/utility.marg_func(c_rent[i_p,i_x],d_adj[i_p,i_x],par)
+        # iii. optimal value and negative inverse 
+        for i_m in range(par.Nm): 
+            inv_v_rent[i_m,i_ht,i_w] = -1/v_ast_vec[i_m]
+            inv_marg_u_rent[i_m,i_ht,i_w] = 1/utility.marg_func_nopar(c_rent[i_m,i_ht,i_w],par.nu,par.rho,par.n[t])
+            
+        # iv. optimal value
+        v_rent = 0
+        inv_v_rent[i_p,i_x] = -1.0/v_rent
+        inv_marg_u_rent[i_p,i_x] = 1.0/utility.marg_func(c_rent[i_p,i_x],d_adj[i_p,i_x],par)
 
