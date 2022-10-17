@@ -291,7 +291,7 @@ class HAHModelClass(EconModelClass):
 
         # a. shapes
         own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
-        rent_shape = (par.T,par.Nm,par.Nw)
+        rent_shape = (par.T,par.Nm,par.Nhtilde,par.Nw)
         post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
 
         # b. stay        
@@ -318,22 +318,27 @@ class HAHModelClass(EconModelClass):
         sol.inv_v_rent = np.zeros(rent_shape)
         sol.inv_marg_u_rent = np.zeros(rent_shape)
             
-        # f. post decision
-        sol.inv_v_bar_stay = np.nan*np.zeros(post_shape)
-        sol.inv_v_bar_ref = np.nan*np.zeros(post_shape)
-        sol.inv_v_bar_buy = np.nan*np.zeros(post_shape)
-        sol.inv_v_bar_rent = np.nan*np.zeros(post_shape)
-        sol.q_stay = np.nan*np.zeros(post_shape)
-        sol.q_rent = np.nan*np.zeros(post_shape)
-        sol.c_endo = np.nan*np.zeros(post_shape)
-        sol.m_endo = np.nan*np.zeros(post_shape)
-        sol.c_endo_rent = np.nan*np.zeros((par.Na,par.Nhtilde)) 
-        sol.m_endo_rent = np.nan*np.zeros((par.Na,par.Nhtilde))
+        # f. overarching and post decision 
+        
 
-        # g. overarching 
+        # g. 
         sol.inv_v_bar = np.nan*np.zeros(post_shape)
-        #sol.v
-        #sol.c 
+        sol.q = np.nan*np.zeros(post_shape)
+
+        #sol.inv_v_bar_stay = np.nan*np.zeros(post_shape)
+        #sol.inv_v_bar_ref = np.nan*np.zeros(post_shape)
+        #sol.inv_v_bar_buy = np.nan*np.zeros(post_shape)
+        #sol.inv_v_bar_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw))
+        #sol.q_stay = np.nan*np.zeros(post_shape)
+        #sol.q_rent = np.nan*np.zeros(post_shape)
+
+        sol.c_endo_stay = np.nan*np.zeros(post_shape)
+        sol.m_endo_stay = np.nan*np.zeros(post_shape)
+        sol.c_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw)) 
+        sol.m_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw))
+
+        
+        #sol.v 
 
     def solve(self,do_assert=True):
         """ solve the model using NEGM and NVFI
