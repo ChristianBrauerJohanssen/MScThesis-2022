@@ -100,8 +100,8 @@ class HAHModelClass(EconModelClass):
         par.omega_dti = 5                               # debt-to-income ratio
         par.Cp_ref = 0.05                               # proportional refinancing cost
         par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
-        par.Td_bar = 30                                  # maximum regulatory mortgage term length
-        par.Tda_bar = 10                                 # maximum terms with deferred amortisation
+        par.Td_bar = 31                                 # maximum regulatory mortgage term length +1
+        par.Tda_bar = 11                                # maximum terms with deferred amortisation +1
 
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
@@ -304,6 +304,7 @@ class HAHModelClass(EconModelClass):
         sol.d_prime_ref = np.zeros(own_shape)
         sol.Tda_prime_ref = np.zeros(own_shape)     # distinguish between beg and end Tda?
         sol.inv_v_ref = np.zeros(own_shape)
+        sol.inv_marg_u_ref = np.zeros(own_shape)
 
         # d. buy
         sol.c_buy = np.zeros(own_shape)
@@ -311,6 +312,7 @@ class HAHModelClass(EconModelClass):
         sol.d_prime_buy = np.zeros(own_shape)
         sol.Tda_prime_buy = np.zeros(own_shape)
         sol.inv_v_buy = np.zeros(own_shape)
+        sol.inv_marg_u_buy = np.zeros(own_shape) # should be post shape?
 
         # e. rent
         sol.c_rent = np.zeros(rent_shape)
@@ -318,13 +320,15 @@ class HAHModelClass(EconModelClass):
         sol.inv_v_rent = np.zeros(rent_shape)
         sol.inv_marg_u_rent = np.zeros(rent_shape)
             
-        # f. overarching and post decision 
-        
-
-        # g. 
+        # f. post decision (overarching) and endogenous arrays 
         sol.inv_v_bar = np.nan*np.zeros(post_shape)
         sol.q = np.nan*np.zeros(post_shape)
 
+        sol.c_endo_stay = np.nan*np.zeros(post_shape)
+        sol.m_endo_stay = np.nan*np.zeros(post_shape)
+        sol.c_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw)) 
+        sol.m_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw))
+     
         #sol.inv_v_bar_stay = np.nan*np.zeros(post_shape)
         #sol.inv_v_bar_ref = np.nan*np.zeros(post_shape)
         #sol.inv_v_bar_buy = np.nan*np.zeros(post_shape)
@@ -332,13 +336,6 @@ class HAHModelClass(EconModelClass):
         #sol.q_stay = np.nan*np.zeros(post_shape)
         #sol.q_rent = np.nan*np.zeros(post_shape)
 
-        sol.c_endo_stay = np.nan*np.zeros(post_shape)
-        sol.m_endo_stay = np.nan*np.zeros(post_shape)
-        sol.c_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw)) 
-        sol.m_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw))
-
-        
-        #sol.v 
 
     def solve(self,do_assert=True):
         """ solve the model using NEGM and NVFI

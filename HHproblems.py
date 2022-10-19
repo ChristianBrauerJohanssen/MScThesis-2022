@@ -8,7 +8,7 @@ import numpy as np
 from numba import njit, prange
 
 # b. NumEconCph packages
-from consav import golden_section_search, upperenvelope, linear_interp
+from consav import golden_section_search, linear_interp, linear_interp_1d, linear_interp_2d, linear_interp_3d, upperenvelope 
  
 # c. local modules
 import utility
@@ -229,7 +229,7 @@ def solve_stay(t,sol,par):
  
                             # oo. back out optimal consumption 
                             c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = par.n[t]*(q_stay[i_a,i_h,i_d,i_Td,i_Tda,i_w]/(1-par.nu))**(1/-par.rho)
-                            m_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = a + c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w]
+                            m_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] = a + c_endo[i_a,i_h,i_d,i_Td,i_Tda,i_w] + par.delta*par.q*h + mt.property_tax(par.q,h,par)
                             
                         # ii. interpolate from post decision space to beginning of period states
                         move = 0
@@ -252,19 +252,21 @@ def solve_stay(t,sol,par):
 # 5. Ref. problem  # 
 ####################
 @njit
-def obj_ref(d_prime,Tda,m,inv_v_stay_slice,grid_m,grid_d_prime,grid_Tda):
+def obj_ref(d_prime,m,d,h,inv_v_stay_slice,grid_m,grid_d_prime,par):
     """ interpolate on stayers solution for refinancers """
 
-    # a. net cash-on-hand
-    m_net = m
+    # a. take new loan?
+    loan = 0
+    if d_prime > 0:
+        loan = 1
 
-    # own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
+    # b. net cash-on-hand
+    m_net = m+d-par.delta*par.q*h-mt.property_tax(par.q,h,par)-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime 
     
     # c. value-of-choice
-    return -linear_interp.interp_3d(grid_m,grid_d_prime,grid_Tda,inv_v_stay_slice,
-                                    m_net,d_prime,Tda)  # we are minimizing
+    return -linear_interp.interp_2d(grid_m,grid_d_prime,inv_v_stay_slice,m_net,d_prime)  # we are minimizing
 
-@njit
+#@njit(parallel=True)
 def solve_ref(t,sol,par):
     """solve bellman equation for refinancers using nvfi"""
 
@@ -273,90 +275,82 @@ def solve_ref(t,sol,par):
     inv_marg_u_ref = sol.inv_marg_u_ref[t]
     c_ref = sol.c_ref[t]
     d_prime_ref = sol.d_prime_ref[t]
+    Tda_prime_ref = sol.Tda_prime_ref[t]
 
     # b. unpack input
     inv_v_stay = sol.inv_v_stay[t]
     c_stay = sol.c_stay[t]
     grid_d_prime = par.grid_d_prime
     grid_m = par.grid_m
-    grid_Tda = range(np.fmax(par.Tda_bar+1,par.T-t))
+    grid_Tda = np.array(range(np.fmax(par.Tda_bar+1,par.T-t)),dtype='int8')
     nu = par.nu
     rho = par.rho
     n = par.n[t]
 
     # c. loop over outer states
     for i_w in prange(par.Nw):
-        w = par.grid_w[i_w]
+        w = par.w_grid[i_w]
         for i_h in prange(par.Nh):
             h = par.grid_h[i_h]
-            for i_d in prange(par.Nd): 
-            # feed indices to the optimiser
-            # own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
+            for i_d in prange(par.Nd):
+                d = par.grid_d[i_d]
+                for i_Tda in prange(par.Tda_bar):
 
-                # i. loop over cash on hand state
-                for i_m in range(par.Nm):
+                    # i. loop over cash on hand state
+                    for i_m in range(par.Nm):                        
+                        m = par.grid_m[i_m]
 
-                    # o. compute net cash on hand
-                    m = par.grid_m[i_m]
-                    #m_net = trans.m_plus_func_ref()
-                    
-                    # oo. enforce non-negativity constraint
-                    if m_net <= 0:
-                        d_prime_ref[i_m,i_h,i_d,:,:,i_w] = 0
-                        c_ref[i_m,i_h,i_d,:,:,i_w] = 0
-                        inv_v_ref[i_m,i_h,i_d,:,:,i_w] = 0
-                        inv_marg_u_ref[i_m,i_h,i_d,:,:,i_w] = 0        
-                        continue
+                        # o. enforce financial regulation
+                        ## terminal mortgage period
+                        Td = mt.Td_func(t,par) 
+                        i_Td = Td - par.Td_bar 
 
-                    # ooo. enforce financial regulation
-                    ## terminal mortgage period
-                    Td = mt.Td_func(t,par) 
-                    i_Td = Td - par.Td_bar 
-                    
-                    ## cap grid at maximum mortgage balance
-                    d_prime_high = np.fmax(par.omega_ltv*par.q*h,par.omega_dti*w) 
-                    i_dp_max = 0
-                    while grid_d_prime[i_dp_max] < d_prime_high:
-                        i_dp_max += 1
-                    grid_d_prime = np.array((grid_d_prime[0:i_dp_max+1],d_prime_high))
+                        ## cap grid at maximum mortgage balance
+                        d_prime_high = np.fmax(par.omega_ltv*par.q*h,par.omega_dti*w) 
+                        i_dp_max = 0
+                        while grid_d_prime[i_dp_max] < d_prime_high:
+                            i_dp_max += 1
+                        grid_d_prime = np.append(grid_d_prime[0:i_dp_max+1],d_prime_high)
 
-                    # oooo. loop over mortage plan choices
-                    inv_v_ref_best = 0
-                    d_prime_best = np.nan
-                    Tda_best = np.nan
+                        # oo. loop over mortage plan choices 
+                        inv_v_ref_best = 0
+                        d_prime_best = np.nan
+                        Tda_best = np.nan
 
-                    for i_dp in prange(len(grid_d_prime)): 
-                        for Tda in prange(grid_Tda):
-                            # evaluate choice
-                            inv_v_ref_new = obj_ref(grid_d_prime[i_dp],Tda,m,inv_v_stay[:,i_h,:,i_Td,:,i_w],
-                                                    grid_m,grid_d_prime,grid_Tda)
+                        for i_dp in prange(len(grid_d_prime)): 
+                            for Tda in prange(max(grid_Tda)):
+                                # evaluate choice
+                                inv_v_ref_new = obj_ref(grid_d_prime[i_dp],m,h,d,
+                                                        inv_v_stay[:,i_h,:,i_Td,Tda,i_w],
+                                                        grid_m,grid_d_prime,par)
 
-                            # update?
-                            if inv_v_ref_new > inv_v_ref_best:
-                                inv_v_ref_best = inv_v_ref_new
-                                d_prime_best = grid_d_prime[i_dp]
-                                Tda_best = Tda
+                                # update optimal value and choices?
+                                if inv_v_ref_new > inv_v_ref_best:
+                                    inv_v_ref_best = inv_v_ref_new
+                                    d_prime_best = grid_d_prime[i_dp]
+                                    Tda_best = Tda
 
-                    # ooooo. save optimal value and choices
+                        # ooo. save optimal value and choices
+                        d_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = d_prime_best
+                        Tda_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = Tda_best
 
+                        ## refinancer's net cash on hand equation
+                        m_net = m - d - par.delta*par.q*h - mt.property_tax(par.q,h,par) - par.Cf_ref + (1-par.Cp_ref)*d_prime_best  
 
-                    ## oooo. optimal choice of mortgage plan
-                    #d_prime_low = 0
-                    #d_prime_high = np.fmax(par.omega_ltv*par.q*h,par.omega_dti*w) # enforce financial regulation
-                    #grid_Tda = range(1,par.Tda+1) # periods of deferred amortisation
+                        ## enforce non-negativity constraint
+                        if m_net <= 0:
+                            d_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0
+                            Tda_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0
+                            c_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0
+                            inv_v_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0
+                            inv_marg_u_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0        
+                            continue
 
-                    #d_prime_ref = golden_section_search.optimizer(obj_ref,d_prime_low,d_prime_high,args=(x,inv_v_stay[i_p],grid_n,grid_m),tol=par.tol)
-                    
-                    # ooooo. optimal value
-                    d_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = d_prime_best
-                    Tda_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = Tda_best
+                        ## now interpolate on stayer consumption and value function
+                        c_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = linear_interp_1d.interp_1d(grid_m,c_stay[:,i_h,i_d,i_Td,i_Tda,i_w],m_net)
 
-                    m_net = m + w - # refinancer's net cash on hand equation
-
-                    c_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = c_stay[i_m,i_h,i_d,i_Td,i_Tda,i_w]
-
-                    inv_v_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = inv_v_ref_best
-                    inv_marg_u_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 1/utility.marg_func_nopar(c_ref[i_p,i_x],nu,rho,n)
+                        inv_v_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = linear_interp_1d.interp_1d(grid_m,inv_v_stay[:,i_h,i_d,i_Td,i_Tda,i_w],m_net)
+                        inv_marg_u_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 1/utility.marg_func_nopar(c_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w],nu,rho,n)
 
 # own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
 
@@ -387,6 +381,7 @@ def solve_buy(t,sol,par):
     inv_marg_u_buy = sol.inv_marg_u_buy[t]
     c_buy = sol.c_buy[t]
     d_prime_buy = sol.d_prime_buy[t]
+    Tda_prime_buy = sol.Tda_prime_buy[t]
     h_buy = sol.h_buy[t]
 
     # b. unpack input
@@ -485,12 +480,12 @@ def solve_rent(t,sol,par):
                 
                 # oo. back out optimal consumption 
                 c_endo[i_a,i_ht] = par.n[t]*(q_rent[i_a,0,0,0,0,i_w]/(1-par.nu))**(1/-par.rho)
-                m_endo[i_a,i_ht] = a + c_endo[i_a,i_ht,i_w]
+                m_endo[i_a,i_ht] = a + c_endo[i_a,i_ht,i_w] + par.q_r*htilde
 
                 #post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.Td_bar,par.Tda_bar,par.Nw)
 
             # ii. interpolate from post decision space to beginning of period states
-            move = 0
+            move = 0    # no costs of moving when renting 
             rent = 1
             negm_upperenvelope(par.grid_a,m_endo[:,i_ht,i_w],c_endo[:,i_ht,i_w],
              inv_v_bar[:,0,0,0,0,i_w],par.grid_m,c_rent[:,i_ht,i_w],
