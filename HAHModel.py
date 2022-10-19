@@ -120,6 +120,10 @@ class HAHModelClass(EconModelClass):
         par.qh_bar = 3_040_000/par.median_income        # top-bracket property tax threshold
         par.rd_bar = 75_000/par.median_income           # high tax value of interest deduction threshold
 
+        # l. price guesses for stationary equilibrium
+        par.q = 1.0                                                     # house price guess
+        par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
+
         # g. grids
         #par.Np = 50                                     # number of points in permanent income grid
         #par.p_min = 1e-4                                # minimum permanent income
@@ -134,15 +138,15 @@ class HAHModelClass(EconModelClass):
         par.htilde_max = 1.89                           # maximum rental house size
 
         par.Nd = 10                                     # number of points in mortgage balance grid beg
-        par.d_max = par.h_max                           # placeholder maximum mortgage size beg of period
+        par.d_max = par.q*par.h_max                     # placeholder maximum mortgage size beg of period
 
-        par.Nd_prime = 80                               # number of points in mortgage balance grid post
-        par.d_prime_max = par.h_max                     # placeholder maximum mortgage size post decision
+        par.Nd_prime = 10                               # number of points in mortgage balance grid post
+        par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
         
-        par.Nm = 50                                    # number of points in cash on hand grid
+        par.Nm = 25                                     # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
     
-        par.Na = 100                                    # number of points in assets grid
+        par.Na = 50                                     # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets
 
         ## h. simulation
@@ -167,10 +171,6 @@ class HAHModelClass(EconModelClass):
         #par.do_marg_u = True                           # calculate marginal utility for use in egm
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
         par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
-
-        # l. price guesses for stationary equilibrium
-        par.q = 1.0                                                     # house price guess
-        par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
 
     def allocate(self):
         """ allocate model """
@@ -291,6 +291,7 @@ class HAHModelClass(EconModelClass):
 
         # a. shapes
         own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
+        buy_shape = (par.T,par.Nm,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
         rent_shape = (par.T,par.Nm,par.Nhtilde,par.Nw)
         post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
 
@@ -307,12 +308,12 @@ class HAHModelClass(EconModelClass):
         sol.inv_marg_u_ref = np.zeros(own_shape)
 
         # d. buy
-        sol.c_buy = np.zeros(own_shape)
-        sol.h_buy = np.zeros(own_shape)
-        sol.d_prime_buy = np.zeros(own_shape)
-        sol.Tda_prime_buy = np.zeros(own_shape)
-        sol.inv_v_buy = np.zeros(own_shape)
-        sol.inv_marg_u_buy = np.zeros(own_shape) # should be post shape?
+        sol.c_buy = np.zeros(buy_shape)
+        sol.h_buy = np.zeros(buy_shape)
+        sol.d_prime_buy = np.zeros(buy_shape)
+        sol.Tda_prime_buy = np.zeros(buy_shape)
+        sol.inv_v_buy = np.zeros(buy_shape)
+        sol.inv_marg_u_buy = np.zeros(buy_shape)
 
         # e. rent
         sol.c_rent = np.zeros(rent_shape)
