@@ -8,7 +8,7 @@ from numba import jit, njit, prange
 
 # income and property tax functions
 @njit(fastmath=True)
-def income_tax(w,a_lag,d,Tda,par):
+def income_aftertax(w,a_lag,d,Tda,par):
     # unpack input
     tau_y0 = par.tau_y0
     tau_y1 = par.tau_y1

@@ -18,7 +18,6 @@ import time
 
 # b. NumEconCph packages
 from EconModel import EconModelClass, jit
-#from GEModelTools import GEModelClass
 from consav import jit
 from consav.grids import equilogspace
 from consav.markov import log_rouwenhorst, find_ergodic, choice
@@ -70,15 +69,16 @@ class HAHModelClass(EconModelClass):
         par.zeta = 0.8                                  # disutility of default
         
         # b. demographics and life cycle profile
-        par.median_income = 350_000                     # 
+        par.median_income = 350_000                     # for normalisation
         par.Tmin = 25                                   # age when entering the model
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
-        par.G = 1.02                                    # growth in permanent income
-        par.L = np.ones(par.T)                          # income profile placeholder
-        par.L[0:par.Tr] = np.linspace(1,1/par.G,par.Tr) # hump shaped permanet income while working
-        par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
-        par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
+        par.chi = np.ones(par.T)                        # placeholder for deterministic income process
+        #par.G = 1.02                                    # growth in permanent income
+        #par.L = np.ones(par.T)                          # income profile placeholder
+        #par.L[0:par.Tr] = np.linspace(1,1/par.G,par.Tr) # hump shaped permanet income while working
+        #par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
+        #par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
         par.n = np.ones(par.T)                          # placeholder for equivalence scale 
 
         # c. income process
