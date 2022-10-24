@@ -70,7 +70,7 @@ def Tda_plus_func(Tda):
     return np.fmax(0,Tda-1)
 
 @njit(fastmath=True)
-def d_plus_func(q,h,d,w,move,ref,t,Td,Tda,par):
+def d_plus_func(q,h,d,w,t,Td,Tda,par,move,ref):
     if move or ref:
         d_plus = (1+par.r_m)*np.fmin(par.omega_ltv*q*h,par.omega_dti*w)
     elif Tda > 0:

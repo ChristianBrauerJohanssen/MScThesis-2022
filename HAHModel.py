@@ -25,9 +25,9 @@ from consav.quadrature import log_normal_gauss_hermite
 
 # c. local modules
 import steady_state
-import HHproblems
-#import trans
-#import utility
+import HHproblems as hhp
+import trans
+import utility
 import simulate 
 import figs
 
@@ -143,10 +143,10 @@ class HAHModelClass(EconModelClass):
         par.Nd_prime = 10                               # number of points in mortgage balance grid post
         par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
         
-        par.Nm = 25                                     # number of points in cash on hand grid
+        par.Nm = 35                                     # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
     
-        par.Na = 50                                     # number of points in assets grid
+        par.Na = 35                                     # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets
 
         ## h. simulation
@@ -362,7 +362,7 @@ class HAHModelClass(EconModelClass):
                 
                 # a. last period
                 if t == par.T-1:
-                    HHproblems.last_period_v_bar_q(t,sol,par)
+                    hhp.last_period_v_bar_q(t,sol,par)
                 
                 ## add more asserts here and slice properly!
                     if do_assert:
@@ -382,7 +382,7 @@ class HAHModelClass(EconModelClass):
                     tic_w = time.time()
 
                     #if par.solmethod == 'negm': 
-                    HHproblems.post_decision_compute_wq(t,sol,par,compute_q=True)                
+                    hhp.post_decision_compute_wq(t,sol,par,compute_q=True)                
                     #else: 
                     #    pass
                     toc_w = time.time()
@@ -401,7 +401,7 @@ class HAHModelClass(EconModelClass):
                     #elif par.solmethod == 'nvfi':                
                     #    nvfi.solve_stay(t,sol,par)
                     #elif par.solmethod == 'negm':
-                    HHproblems.solve_stay(t,sol,par)
+                    hhp.solve_stay(t,sol,par)
                     toc_stay = time.time()
                     par.time_stay[t] = toc_stay-tic_stay
                     
@@ -414,7 +414,7 @@ class HAHModelClass(EconModelClass):
 
                     # iii. solve and time refinance problem
                     tic_ref = time.time()
-                    HHproblems.solve_ref(t,sol,par)                  
+                    hhp.solve_ref(t,sol,par)                  
                     toc_ref = time.time()
                     par.time_ref[t] = toc_ref-tic_ref
 
@@ -429,7 +429,7 @@ class HAHModelClass(EconModelClass):
                     # iv. solve and time buyer problem
 
                     tic_buy = time.time()
-                    HHproblems.solve_buy(t,sol,par)                  
+                    hhp.solve_buy(t,sol,par)                  
                     toc_buy = time.time()
 
                     par.time_buy[t] = toc_buy-tic_buy
@@ -445,7 +445,7 @@ class HAHModelClass(EconModelClass):
                     # v. solve and time renter problem
 
                     tic_rent = time.time()
-                    HHproblems.solve_rent(t,sol,par)                  
+                    hhp.solve_rent(t,sol,par)                  
                     toc_rent = time.time()
 
                     par.time_rent[t] = toc_rent-tic_rent
