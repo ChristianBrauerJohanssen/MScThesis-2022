@@ -137,11 +137,11 @@ class HAHModelClass(EconModelClass):
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
 
-        par.Nd = 10                                     # number of points in mortgage balance grid beg
-        par.d_max = par.q*par.h_max                     # placeholder maximum mortgage size beg of period
+        par.Nd = 10                                     # number of points in mortgage balance grid
+        par.d_max = par.q*par.h_max                     # placeholder maximum mortgage size
 
-        par.Nd_prime = 10                               # number of points in mortgage balance grid post
-        par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
+        #par.Nd_prime = 10                               # number of points in mortgage balance grid post
+        #par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
         
         par.Nm = 35                                     # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
@@ -192,8 +192,8 @@ class HAHModelClass(EconModelClass):
         # a. beginning of period states (income is approxed by Np-state Markov Proces)
         par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='float32')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-        par.grid_d = equilogspace(0,par.d_max,par.Nd)
-        par.grid_d_prime = equilogspace(0,par.d_prime_max,par.Nd_prime)
+        #par.grid_d = np.linspace(0,par.d_max,par.Nd)   
+        #par.grid_d_prime = equilogspace(0,par.d_prime_max,par.Nd_prime)
 
         par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='float32')
         # strictly speaking, htilde is not a state

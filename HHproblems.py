@@ -39,7 +39,7 @@ def last_period_v_bar_q(t,sol,par):
     Td_max = mt.Td_func(t,par)
 
     # c. compute post decision given by bequest 
-    for i_Tda in prange(2):
+    for i_Tda in prange(2): # last period means either 
         for i_Td in prange(Td_max-par.Td_bar):
             for i_h in range(par.Nh+1):
                 
@@ -49,19 +49,18 @@ def last_period_v_bar_q(t,sol,par):
                 else: 
                     h = par.grid_h[i_h-1]
 
-                # ii. find maximum loan size
-                i_dmax = 0
-                while par.grid_d[i_dmax] < par.q*h:
-                    i_dmax += 1
+                # ii. scale mortgage grid
+                d_high = par.q*h
+                grid_d = np.linspace(0,d_high,par.Nd)
                     
-                for i_d in range(i_dmax+1):    
+                for i_d in range(par.Nd):    
                     for i_a in range(par.Na):
                         
                         # o. mortgage? 
                         if i_Td < t: 
                             d = 0
                         else: 
-                            d = par.grid_d[i_d]
+                            d = grid_d[i_d]
 
                         # oo. remaining post decision states
                         Tda = i_Tda
@@ -90,18 +89,25 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
     for i_w in prange(par.Nw): 
 
         # a. allocate temporary containers
-        #m_plus = np.zeros(par.Na) # container, same lenght as grid_a
-        #m_net_plus = np.zeros(par.Na)
+        m_plus_stay = np.zeros(par.Na)
+        m_net_stay = np.zeros(par.Na)
+        m_plus_ref = np.zeros(par.Na)
+        m_net_ref = np.zeros(par.Na)
+        m_plus_buy = np.zeros(par.Na)
+        m_net_buy = np.zeros(par.Na)
+        m_plus_rent = np.zeros(par.Na) # container, same lenght as grid_a
+        m_net_rent = np.zeros(par.Na)
+        
         v_bar = np.zeros(par.Na)
 
         inv_v_stay_plus = np.zeros(par.Na)
-        inv_v_ref_plus = np.zeros(par.Na)
-        inv_v_buy_plus = np.zeros(par.Na)
-        inv_v_rent_plus = np.zeros(par.Na)
+        inv_v_ref_plus = np.zeros(par.Na,par.Nd,par.Tda_bar)
+        inv_v_buy_plus = np.zeros(par.Na,par.Nh,par.Nd,par.Tda_bar)
+        inv_v_rent_plus = np.zeros(par.Na,par.Nhtilde)
 
         inv_marg_u_stay_plus = np.zeros(par.Na)
-        inv_marg_u_ref_plus = np.zeros(par.Na)
-        inv_marg_u_buy_plus = np.zeros(par.Na,par.Nhtilde)
+        inv_marg_u_ref_plus = np.zeros(par.Na,par.Nd,par.Tda_bar)
+        inv_marg_u_buy_plus = np.zeros(par.Na,par.Nh,par.Nd,par.Tda_bar)
         inv_marg_u_rent_plus = np.zeros(par.Na,par.Nhtilde)
 
         # b. loop over other outer post-decision states
@@ -114,143 +120,128 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
 
             for i_Td in range(Td_max-par.Td_bar):
                     for i_Tda in range(np.fmax(par.Tda_bar,par.T-t)):
-                        # mortgage plan and cap grid
+                        # mortgage plan and scale grid
                         Tda = i_Tda
                         Td = i_Td + par.Td_bar
-                        i_dmax = 0
-                        while par.grid_d[i_dmax] < par.q*h:
-                           i_dmax += 1
-                        if i_dmax < len(par.grid_d):                      
-                            grid_dp = np.append(par.grid_d[0:i_dmax],par.q*h)
+
+                        d_prime_high = par.q*h
+                        grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
                         
-                        for i_dp in range(len(grid_dp)):
+                        for i_dp in range(par.Nd):
                             # i. permanent income
                             w = par.grid_w[i_w]
+
+                            # ii. next period mortgage balance
+                            d_plus = trans.d_plus_func(par.q,h,grid_d_prime[i_dp],w,Td,Tda,t,par,move=0,ref=0)
                         
-                            # ii. initialize at zero
+                            # iii. initialize at zero
                             for i_a in range(par.Na):
                                 v_bar[i_a] = 0.0
                                 q[i_a,i_h,i_dp,i_Td,i_Tda,i_w] = 0.0
 
-                            # iii. loop over shocks and then end-of-period assets
+                            # iv. loop over shocks and then end-of-period assets
                             for i_shock in range(par.Nw):                
-                                # o. next-period permanent income and housing stock
+                                # o. next-period (permanent) income 
                                 work = 1                                # employed next period?
                                 xi = 1                                  # placeholder transitory shock
                                 w_plus = trans.w_plus_func(w,xi,work,par)
                                 w_plus_weight = par.w_trans[i_w,i_shock]
 
-                                h_plus_stay = h
-                                d_plus_stay = trans.d_plus_func(par.q,h,grid_dp[i_dp],w,Td,Tda,t,par,move=0,ref=0)
-
-                                h_plus_ref = h
-
-                                # oo. prepare interpolators for stay and rent
-                                prep_stay = linear_interp.interp_3d_prep(par.grid_w,grid_dp,w_plus,d_plus_stay,par.Na)
-                                prep_rent = linear_interp.interp_2d_prep(par.grid_w,w_plus,par.Na)
-
-                                # ooo. compute weight 
+                                # oo. compute weight 
                                 weight = w_plus_weight
 
-                                # oooo. evaluate next period living situation
-                                for i_a in range(par.Na):
+                                # ooo. evaluate next period living situation
                                     ## rent next period
-                                    for i_ht in range(par.Nhtilde):
-                                        # next period rental size and (net) cash-on-hand
+                                    # prepare interpolator
+                                prep_rent = linear_interp.interp_2d_prep(par.grid_w,w_plus,par.Na)
+                                
+                                    # loop through rental sizes
+                                for i_ht in range(par.Nhtilde):  
+                                    for i_a in range(par.Na):
                                         htilde = par.grid_htilde[i_ht]
-                                        m_plus_rent = trans.m_plus_func(par.grid_a[i_a],w_plus,grid_dp[i_dp],Td,Tda,par)
-                                        m_net_rent = trans.m_to_mnet_rent(m_plus_rent,htilde,par)
+                                        
+                                        # (net) cash-on-hand
+                                        m_plus_rent[i_a] = trans.m_plus_func(par.grid_a[i_a],w_plus,grid_d_prime[i_dp],Td,Tda,par)
+                                        m_net_rent[i_a] = trans.m_to_mnet_rent(m_plus_rent,htilde,par)
 
-                                        # interpolate on inverse funcs given rental choice
-                                        linear_interp.interp_2d_only_last_vec_mon(prep_rent,par.grid_m,par.grid_w,sol.inv_v_rent[t+1,:,i_ht,:],m_net_rent,w_plus,inv_v_rent_plus[:,i_ht])
-                                        linear_interp.interp_2d_only_last_vec_mon_rep(prep_rent,par.grid_m,par.grid_w,sol.inv_marg_u_rent[t+1,:,i_ht,:],m_net_rent,w_plus,inv_marg_u_rent_plus[:,i_ht])
+                                    # interpolate on inverse funcs given rental choice
+                                    linear_interp.interp_2d_only_last_vec_mon(prep_rent,par.grid_m,par.grid_w,sol.inv_v_rent[t+1,:,i_ht,:],m_net_rent,w_plus,inv_v_rent_plus[:,i_ht])
+                                    linear_interp.interp_2d_only_last_vec_mon_rep(prep_rent,par.grid_m,par.grid_w,sol.inv_marg_u_rent[t+1,:,i_ht,:],m_net_rent,w_plus,inv_marg_u_rent_plus[:,i_ht])
         
                                     
-                                    ## stay next period
-                                        # next period net cash-on-hand
-                                    m_plus_stay = trans.m_plus_func(par.grid_a[i_a],w_plus,grid_dp[i_dp],Td,Tda,par)
-                                    m_net_stay = trans.m_to_mnet_stay(m_plus_stay,h,par)
-                                        
-                                        # interpolate to get inverse funcs
-                                    linear_interp.interp_3d_only_last_vec_mon(prep_stay,par.grid_m,grid_dp,par.grid_w,sol.inv_v_stay[t+1,:,i_h,:,i_Td,i_Tda,:],
-                                                                              m_net_stay,d_plus_stay,w_plus,inv_v_stay_plus)
-                                    linear_interp.interp_3d_only_last_vec_mon_rep(prep_stay,par.grid_m,grid_dp,par.grid_w,
-                                                                                  sol.inv_marg_u_stay[t+1,:,i_h,:,i_Td,i_Tda,:],
-                                                                                  m_net_stay,d_plus_stay,w_plus,inv_marg_u_stay_plus)
+                                ## stay next period
+                                    # prepare interpolator
+                                prep_stay = linear_interp.interp_3d_prep(par.grid_w,grid_d_prime,w_plus,d_plus,par.Na)
+                                
+                                    # (net) cash-on-hand
+                                for i_a in range(par.Na):
+                                    m_plus_stay[i_a] = trans.m_plus_func(par.grid_a[i_a],w_plus,grid_d_prime[i_dp],Td,Tda,par)
+                                    m_net_stay[i_a] = trans.m_to_mnet_stay(m_plus_stay,h,par)
+                                    
+                                    # interpolate to get inverse funcs
+                                linear_interp.interp_3d_only_last_vec_mon(prep_stay,par.grid_m,grid_d_prime,par.grid_w,sol.inv_v_stay[t+1,:,i_h,:,i_Td,i_Tda,:],
+                                                                          m_net_stay,d_plus,w_plus,inv_v_stay_plus)
+                                linear_interp.interp_3d_only_last_vec_mon_rep(prep_stay,par.grid_m,grid_d_prime,par.grid_w,
+                                                                              sol.inv_marg_u_stay[t+1,:,i_h,:,i_Td,i_Tda,:],
+                                                                              m_net_stay,d_plus,w_plus,inv_marg_u_stay_plus)
 
-                                    ## refinance next period
-                                    d_plus_ref = d_plus_stay
-                                    m_plus_ref = trans.m_plus_func(par.grid_a[i_a],w_plus,d_plus_ref,Td,Tda,par,t)
+                                ## refinance next period
+                                    # prepare interpolator - next period mortgage state or choice??? 
+                                prep_ref = linear_interp.interp_3d_prep(par.grid_w,grid_d_prime,w_plus,d_plus,par.Na)
 
-                                        # loop through mortgage plans
-                                    Td_ref = mt.Td_func(t,par)
-                                    for i_dpp in len(grid_dp):
-                                        #for Tda_prime in range(par.Tda_bar):
-                                        d_prime_plus_ref = grid_dp[i_dpp]
-                                        Tda_prime_ref = sol.Tda_prime_ref[t+1,]
-                                        d_prime_plus_ref = trans.d_plus_func(par.q,h,grid_dp[i_dpp],w,t,Td_ref,Tda,par,move=0,ref=0)    
+                                    # loop through mortgage plans (can I skip i_Tda here???) no, add
+                                Td_ref = mt.Td_func(t,par)
+                                for i_dpp in range(par.Nd):
+                                    d_prime_plus_ref = grid_d_prime[i_dpp]
+                                    for i_a in range(par.Na):
+                                        # (net) cash-on-hand
+                                        m_plus_ref[i_a] = trans.m_plus_func(par.grid_a[i_a],w_plus,d_plus,Td,Tda,par,t)                                        
+                                        m_net_ref[i_a] = trans.m_to_mnet_ref(m_plus_ref,h,d_plus,d_prime_plus_ref,par)   
 
-                                        m_net_ref = trans.m_to_mnet_ref(h,d)
-                                        Tda_plus_ref = sol.Tda_prime_ref[t+1,i_m,i_h,i_dp,i_Td,i_Tda,i_w]
-                                     
-                                #    Tda_prime_ref_best = np.nan
-                                #        # loop over d_prime and Tda_prime
-                                #    
-                                #            # evaluate choice
-                                #        inv_v_ref_new = obj_ref(grid_d_prime[i_dp],m,h,d,
-                                #                        inv_v_stay[:,i_h,:,i_Td,Tda,i_w],
-                                #                        grid_m,grid_d_prime,par)
-#
-                                ## update optimal value and choices?
-                                #if inv_v_ref_new > inv_v_ref_best:
-                                #    inv_v_ref_best = inv_v_ref_new
-                                #    d_prime_best = grid_d_prime[i_dp]
-                                #    Tda_best = Tda
-#
-                                ## ooo. save optimal value and choices
-                                #d_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = d_prime_ref_best
-                                #Tda_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = Tda_best
-#
-#
-                                #        # pick best mortgage plan
-                                #        
-                                #        # prepare interpolators
-                                    prep_ref = linear_interp.interp_3d_prep(par.grid_w,grid_dp,w_plus,d_plus_ref,par.Na)
-
-                                        # interpolate on inverse funcs given mortgage plan
-                                    linear_interp.interp_3d_only_last_vec_mon(prep_ref,par.grid_m,grid_dp,par.grid_w,sol.inv_v_ref[t+1],p_plus,n_plus,m_plus,inv_v_ref_plus)
-                                    linear_interp.interp_3d_only_last_vec_mon(prep_ref,par.grid_m,grid_dp,par.grid_w,sol.inv_marg_u_ref[t+1],m_net_ref,dp_plus,w_plus,inv_v_buy_plus)
+                                    # interpolate on inverse funcs given mortgage plan
+                                    linear_interp.interp_3d_only_last_vec_mon(prep_ref,par.grid_m,grid_d_prime,par.grid_w,
+                                                                              sol.inv_v_ref[t+1,:,i_h,:,i_Td,i_Tda,:],m_net_ref,
+                                                                              d_prime_plus_ref,w_plus,inv_v_ref_plus[:,i_dpp,i_Tda])
+                                    linear_interp.interp_3d_only_last_vec_mon_rep(prep_ref,par.grid_m,grid_d_prime,par.grid_w,
+                                                                                  sol.inv_marg_u_ref[t+1,:,i_h,:,i_Td,i_Tda,:],m_net_ref,
+                                                                                  d_prime_plus_ref,w_plus,inv_marg_u_ref_plus[:,i_dpp,i_Tda])
                             
+                                ## buy next period
+                                    # loop through house sizes
+                                for i_hb in range(par.Nh):
+                                    # house purchase
+                                    h_buy_plus = par.grid_h[i_hb]
 
+                                    # scale mortgage grid
+                                    d_prime_high_buy = par.q*h_buy_plus
+                                    grid_d_prime_plus = np.linspace(0,d_prime_high_buy,par.Nd)
 
-                                    # buy loop over h_buy, d_prime and Tda_prime, nest within refinance loop?
-
-                                        # loop over h_buy
-                                            # determine feasible new mortgages
-                                        
-                                            # loop over feasible mortgage plans
-
-                                            # pick best mortgage plan given h_buy, 
-                                        # check whether combination of h_buy_i and optimal mortgage plan is bet yet,
-                                        # If so, update
+                                    for i_dpp in range(par.Nd): # add Tda (can I skip i_Tda here???)
+                                        d_prime_buy_plus = grid_d_prime_plus[i_dpp]
+                                        for i_a in range(par.Na):
+                                            # (net) cash-on-hand
+                                            m_plus_buy[i_a] = trans.m_plus_func(par.grid_a[i_a],w_plus,d_plus,Td,Tda,par,t)                                        
+                                            m_net_buy[i_a] = trans.m_to_mnet_buy(m_plus_ref,h,d_plus,d_prime_buy_plus,h_buy_plus,par)
 
                                         # prepare interpolator
-                                prep_buy = linear_interp.interp_3d_prep(par.grid_w,par.grid_h,w_plus,h_plus,par.Na)
+                                        #prep_buy = linear_interp.interp_3d_prep(par.grid_w,par.grid_h,w_plus,h_plus,par.Na)
 
                                         # interpolate on inverse funcs given optimal house purchase and mortgage plan
-                                linear_interp.interp_3d_only_last_vec_mon_rep(prep_buy,par.grid_p,par.grid_n,par.grid_m,sol.inv_marg_u_keep[t+1],p_plus,n_plus,m_plus,inv_marg_u_stay_plus)
-                                linear_interp.interp_3d_only_last_vec_mon_rep(prep_buy,par.grid_p,par.grid_n,par.grid_m,sol.inv_marg_u_keep[t+1],p_plus,n_plus,m_plus,inv_marg_u_stay_plus)
+                                        #linear_interp.interp_3d_only_last_vec_mon_rep(prep_buy,par.grid_p,par.grid_n,par.grid_m,sol.inv_marg_u_keep[t+1],p_plus,n_plus,m_plus,inv_marg_u_stay_plus)
+                                        #linear_interp.interp_3d_only_last_vec_mon_rep(prep_buy,par.grid_p,par.grid_n,par.grid_m,sol.inv_marg_u_keep[t+1],p_plus,n_plus,m_plus,inv_marg_u_stay_plus)
                                 
-                                # ooooo. max and accumulate
-                                    ## find best rental size given a_t
+                                # oooo. max and accumulate
+                                    ## find best discrete choices alternatives given states
                                 rent_choice = np.nan*np.zeros(par.Na)
+                                ref_choice = np.nan*np.zeros(par.Na)
+                                buy_choice = np.nan*np.zeros(par.Na)
                                 for i_a in range(par.Na):
                                     discrete_rent = np.array(inv_v_rent_plus[i_a,0],
                                                              inv_v_rent_plus[i_a,1],
                                                              inv_v_rent_plus[i_a,2])
                                     rent_choice[i_a] = np.argmax(discrete_rent)
-
-
+                                    
+                                    ## find THE best discrete choice given states
                                 for i_a in range(par.Na):                                
                                     discrete = np.array([inv_v_stay_plus[i_a],
                                                         inv_v_ref_plus[i_a],
@@ -270,11 +261,11 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
                                         v_plus = -1/inv_v_rent_plus[i_a,rent_choice[i_a]]
                                         marg_u_plus = -1/inv_marg_u_rent_plus[i_a,rent_choice[i_a]]
                                     v_bar[i_a] += weight*par.beta*v_plus
-                                    q[i_a,i_h,i_d,i_Td,i_Tda,i_w] += weight*par.beta*(1+par.r)*marg_u_plus
+                                    q[i_a,i_h,i_dp,i_Td,i_Tda,i_w] += weight*par.beta*(1+par.r)*marg_u_plus
 
                             # v. transform post decision value function
                             for i_a in range(par.Na):
-                                inv_v_bar[i_a,i_h,i_d,i_Td,i_Tda,i_w] = -1/v_bar[i_a]
+                                inv_v_bar[i_a,i_h,i_dp,i_Td,i_Tda,i_w] = -1/v_bar[i_a]
 
 
 ####################
@@ -394,7 +385,7 @@ def obj_ref(d_prime,m,d,h,inv_v_stay_slice,grid_m,grid_d_prime,par):
 
     # b. net cash-on-hand
     m_net = m+d-par.delta*par.q*h-mt.property_tax(par.q,h,par)-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime 
-    
+    #m_net = trans.m_to_mnet_ref(m,h,d,d_prime,par)
     # c. value-of-choice
     return linear_interp.interp_2d(grid_m,grid_d_prime,inv_v_stay_slice,m_net,d_prime)  # we are minimizing
 
@@ -426,8 +417,9 @@ def solve_ref(t,sol,par):
         w = par.w_grid[i_w]
         for i_h in prange(par.Nh):
             h = par.grid_h[i_h]
+            grid_d = np.linspace(0,par.q*h,par.Nd)
             for i_d in range(par.Nd):
-                d = par.grid_d[i_d]
+                d = grid_d[i_d]
                 for i_Tda in range(par.Tda_bar):
 
                     # i. loop over cash on hand state
@@ -435,25 +427,20 @@ def solve_ref(t,sol,par):
                         m = par.grid_m[i_m]
 
                         # o. enforce financial regulation
-                        ## terminal mortgage period
+                            ## terminal mortgage period
                         Td = mt.Td_func(t,par) 
                         i_Td = Td - par.Td_bar 
 
-                        ## cap grid at maximum mortgage balance
-                        grid_d_prime = par.grid_d_prime
+                            ## scale post decision mortgage grid
                         d_prime_high = np.fmin(par.omega_ltv*par.q*h,par.omega_dti*w) 
-                        i_dp_max = 0
-                        while grid_d_prime[i_dp_max] < d_prime_high:
-                            i_dp_max += 1
-                        if i_dp_max < len(grid_d_prime):                      
-                            grid_d_prime = np.append(grid_d_prime[0:i_dp_max],d_prime_high)
+                        grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
 
                         # oo. loop over mortage plan choices 
                         inv_v_ref_best = 0
                         d_prime_best = np.nan
                         Tda_best = np.nan
 
-                        for i_dp in range(len(grid_d_prime)): 
+                        for i_dp in range(par.Nd): 
                             for Tda in range(max(grid_Tda)):
                                 # count and print 
                                 count = count+1
@@ -477,7 +464,7 @@ def solve_ref(t,sol,par):
 
                         ## refinancer's net cash on hand equation
                         m_net = m - d - par.delta*par.q*h - mt.property_tax(par.q,h,par) - par.Cf_ref + (1-par.Cp_ref)*d_prime_best  
-
+                        #m_net = trans.m_to_mnet_ref(m,h,d,d_prime_best,par)
                         ## enforce non-negativity constraint
                         if m_net <= 0:
                             d_prime_ref[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0
@@ -507,7 +494,7 @@ def obj_buy(d_prime,hbuy,m,h,d,inv_v_stay_slice,grid_m,grid_d_prime,par):
 
     # b. net cash-on-hand
     m_net = m+d-(par.delta+par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime -(1+par.C_buy)*par.q*hbuy
-    
+    #m_net = trans.m_to_mnet_buy(m,h,d,d_prime,hbuy,par)
     # c. value-of-choice
     return (linear_interp.interp_2d(grid_m,grid_d_prime,inv_v_stay_slice,m_net,d_prime)-par.kappa)  # we are minimizing
 
@@ -540,34 +527,33 @@ def solve_buy(t,sol,par):
     for i_w in prange(par.Nw):
         w = par.w_grid[i_w]
         for i_h in prange(par.Nh+1):
-            for i_d in range(par.Nd):
-                d = par.grid_d[i_d]
-                for i_Tda in range(par.Tda_bar):
-                    # i. own or rent?
-                    if i_h == 0: 
-                        h = 0
-                    else: 
-                        h = grid_h[i_h-1]
+            # own or rent?
+            if i_h == 0: 
+                h = 0
+            else: 
+                h = grid_h[i_h-1]
+            
+            # scale mortgage grid
+            grid_d = np.linspace(0,par.q*h,par.Nd)
 
-                    # ii. loop over cash on hand and house purchase
+            for i_d in range(par.Nd):
+                d = grid_d[i_d]
+                for i_Tda in range(par.Tda_bar):
+                    
+                    # i. loop over cash on hand and house purchase
                     for i_m in range(par.Nm):                        
                         m = par.grid_m[i_m]
                         for i_hb in range(par.Nh):
                             hbuy = grid_h[i_hb]
 
                             # o. enforce financial regulation
-                            ## terminal mortgage period
+                                ## terminal mortgage period
                             Td = mt.Td_func(t,par) 
                             i_Td = Td - par.Td_bar 
 
-                            ## cap grid at maximum mortgage balance
-                            grid_d_prime = par.grid_d_prime
+                                ## scale post decision mortgage grid
                             d_prime_high = np.fmin(par.omega_ltv*par.q*hbuy,par.omega_dti*w) 
-                            i_dp_max = 0
-                            while grid_d_prime[i_dp_max] < d_prime_high:
-                                i_dp_max += 1
-                            if i_dp_max < len(grid_d_prime):                      
-                                grid_d_prime = np.append(grid_d_prime[0:i_dp_max],d_prime_high)
+                            grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
 
                             # oo. loop over mortage plan choices 
                             inv_v_buy_best = 0
@@ -599,9 +585,9 @@ def solve_buy(t,sol,par):
                             Tda_prime_buy[i_m,i_h,i_d,i_Td,i_Tda,i_w] = Tda_best
                             h_buy[i_m,i_h,i_d,i_Td,i_Tda,i_w] = hbuy_best
 
-                            ## buyer's net cash on hand equation - replace with trans.func?
+                            ## buyer's net cash on hand equation
                             m_net = m-d-(par.delta+par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)-par.Cf_ref+(1-par.Cp_ref)*d_prime_best+(1+par.C_buy)*par.q*hbuy_best
-
+                            #m_net = trans.m_to_mnet_buy(m,h,d,d_prime_best,hbuy_best,par)
                             ## enforce non-negativity constraint
                             if m_net <= 0:
                                 d_prime_buy[i_m,i_h,i_d,i_Td,i_Tda,i_w] = 0
