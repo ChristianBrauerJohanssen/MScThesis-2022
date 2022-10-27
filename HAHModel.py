@@ -144,7 +144,7 @@ class HAHModelClass(EconModelClass):
         #par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
         
         par.Nm = 10                                     # number of points in cash on hand grid
-        par.m_max = 10.0                                # maximum cash-on-hand level  
+        par.m_max = 15.0                                # maximum cash-on-hand level  
     
         par.Na = 10                                    # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets

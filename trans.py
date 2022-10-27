@@ -36,8 +36,14 @@ def m_plus_func(a,w_plus,d,Td,Tda,par,t):
     return m_plus
 
 njit(fastmath=True)
-def m_to_mnet_stay(m_plus,h,par): 
-   return m_plus - par.delta*par.q*h - mt.property_tax(par.q,h,par)
+def m_to_mnet_stay(m_plus,h,par):
+    # unpack parameters
+    delta = par.delta
+    q = par.q
+
+    # compute m_net
+    m_net = m_plus - delta*q*h - mt.property_tax(q,h,par)
+    return m_net
 
 njit(fastmath=True)
 def m_to_mnet_ref(m_plus,h,d,d_prime,par): 
@@ -61,9 +67,11 @@ def m_to_mnet_buy(m_plus,h,d,d_prime,hbuy,par):
     m_net = m_plus+d-(par.delta+par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime -(1+par.C_buy)*par.q*hbuy
     return m_net
 
-njit(fastmath=True)
-def m_to_mnet_rent(m_plus,htilde,par): 
-   return m_plus - par.q_r*htilde
+@njit(fastmath=True)
+def m_to_mnet_rent(m_plus,htilde,par):
+    # unpack parameters
+    q_r = par.q_r
+    return m_plus - q_r*htilde
 
 # 4. mortgage plan
 @njit(fastmath=True)

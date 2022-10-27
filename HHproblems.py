@@ -37,7 +37,7 @@ def last_period_v_bar_q(t,sol,par):
 
     # b. find terminal period
     Td_max = mt.Td_func(t,par)
-
+    
     # c. compute post decision given by bequest 
     for i_Tda in prange(2): # last period means either 
         for i_Td in prange(Td_max-par.Td_bar):
@@ -76,7 +76,7 @@ def last_period_v_bar_q(t,sol,par):
 # 3. Post decision # 
 ####################
 @njit(parallel=True)
-def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
+def postdecision_compute_v_bar_q(t,sol,par):
     """ compute the post-decision functions w and/or q """
     # unpack solution arrays
     inv_v_bar = sol.inv_v_bar[t]
@@ -85,6 +85,8 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
     # b. find terminal period
     Td_max = mt.Td_func(t,par)
 
+    # c. counter
+    count = 0 
     # loop over outermost post-decision state
     for i_w in prange(par.Nw): 
 #m_plus_stay = np.zeros(par.Na)
@@ -117,7 +119,7 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
         for i_h in prange(par.Nh+1):
             # housing stock (own or rent)
             if i_h == 0: 
-                h = 0
+                h = 0.0
             else: 
                 h = par.grid_h[i_h-1]
 
@@ -157,7 +159,7 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
                                 ## rent next period
                                     # prepare interpolator
                                 prep_rent = linear_interp.interp_2d_prep(par.grid_w,w_plus,par.Na)
-                                print(prep_rent)
+        
                                     # loop through rental sizes
                                 for i_ht in range(par.Nhtilde):  
                                     for i_a in range(par.Na):
@@ -166,35 +168,31 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
                                         # (net) cash-on-hand
                                         m_plus_rent[i_a] = trans.m_plus_func(par.grid_a[i_a],w_plus,grid_d_prime[i_dp],Td,Tda,par,t)
                                         m_net_rent[i_a] = trans.m_to_mnet_rent(m_plus_rent[i_a],htilde,par)
-
+                                    
                                     # interpolate on inverse funcs given rental choice
-                                    linear_interp.interp_2d_only_last_vec_mon(prep_rent,par.grid_m,par.grid_w,
-                                                                              sol.inv_v_rent[t+1,:,i_ht,:],w_plus,
-                                                                              m_net_rent,inv_v_rent_plus[:,i_ht])
-                                    linear_interp.interp_2d_only_last_vec_mon_rep(prep_rent,par.grid_m,par.grid_w,
-                                                                                  sol.inv_marg_u_rent[t+1,:,i_ht,:],
-                                                                                  w_plus,m_net_rent,inv_marg_u_rent_plus[:,i_ht])
+                                    linear_interp.interp_2d_only_last_vec_mon(prep_rent,par.grid_m,par.grid_w,sol.inv_v_rent[t+1,:,i_ht,:],w_plus,m_net_rent,inv_v_rent_plus[:,i_ht])
+                                    linear_interp.interp_2d_only_last_vec_mon_rep(prep_rent,par.grid_m,par.grid_w,sol.inv_marg_u_rent[t+1,:,i_ht,:], w_plus,m_net_rent,inv_marg_u_rent_plus[:,i_ht])
         
                                 ## own next period
-                                    # prepare interpolators
+                                # prepare interpolators
                                 prep_own = linear_interp.interp_3d_prep(par.grid_w,grid_d_prime,w_plus,d_plus,par.Na)
                                 
-                                    # cash-on-hand
+                                # cash-on-hand
                                 for i_a in range(par.Na):
                                     m_plus_own[i_a] = trans.m_plus_func(par.grid_a[i_a],w_plus,d_plus,Td,Tda,par,t)
-                                    m_plus_net_stay[i_a] = trans.m_to_mnet_stay(m_plus_own[i_a],h,par)
+                                    m_plus_net_stay[i_a] = m_plus_own[i_a]-par.delta*par.q*h-mt.property_tax(par.q,h,par)  #trans.m_to_mnet_stay(m_plus_own[i_a],h,par)
                                     m_plus_gross_ref[i_a] = m_plus_own[i_a]-grid_d_prime[i_dp]-par.delta*par.q*h-mt.property_tax(par.q,h,par)
                                     m_plus_gross_buy[i_a] = m_plus_own[i_a]-grid_d_prime[i_dp]+(1-par.delta+par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)
 
-                                # print for debugging
-                                print(f'prep_own is {prep_own}')
-                                print(f'par.grid_m is {par.grid_m}')
-                                print(f'grid_d_prime is {grid_d_prime}')
-                                print(f'par.grid_w is {par.grid_w}')
-                                print(f'solution array is {sol.inv_v_buy[t+1,:,i_h,:,i_Td,i_Tda,:]}')
-                                print(f'd_plus is {d_plus}')
-                                print(f'w_plus is {w_plus}')
-                                print(f'm_plus_gross {m_plus_net_stay}')
+                                ## print for debugging
+                                #print(f'prep_own is {prep_own}')
+                                #print(f'par.grid_m is {par.grid_m}')
+                                #print(f'grid_d_prime is {grid_d_prime}')
+                                #print(f'par.grid_w is {par.grid_w}')
+                                #print(f'solution array is {sol.inv_v_buy[t+1,:,i_h,:,i_Td,i_Tda,:]}')
+                                #print(f'd_plus is {d_plus}')
+                                #print(f'w_plus is {w_plus}')
+                                #print(f'm_plus_gross {m_plus_net_stay}')
                                 #print(f'm_plus_gross_ref is {m_plus_gross_ref}')
                                 #print(f'm_plus_gross_buy is {m_plus_gross_buy}')
                                 
@@ -216,40 +214,51 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
                                                                                   sol.inv_marg_u_ref[t+1,:,i_h-1,:,i_Td,i_Tda,:],d_plus,
                                                                                   w_plus,m_plus_gross_ref,inv_marg_u_ref_plus)
                             
-                                    # interpolate on inverse funcs for buyers
-                                linear_interp.interp_3d_only_last_vec_mon(prep_own,grid_d_prime,par.grid_w,par.grid_m,
+                                    # interpolate on inverse funcs for buyers with house now
+                                    linear_interp.interp_3d_only_last_vec_mon(prep_own,grid_d_prime,par.grid_w,par.grid_m,
                                                                               sol.inv_v_buy[t+1,:,i_h,:,i_Td,i_Tda,:],d_plus,
                                                                               w_plus,m_plus_gross_buy,inv_v_buy_plus)
-                                linear_interp.interp_3d_only_last_vec_mon_rep(prep_own,grid_d_prime,par.grid_w,par.grid_m,
-                                                                              sol.inv_marg_u_buy[t+1,:,i_h,:,i_Td,i_Tda,:],d_plus,
+                                    linear_interp.interp_3d_only_last_vec_mon_rep(prep_own,grid_d_prime,par.grid_w,par.grid_m,
+                                                                                  sol.inv_marg_u_buy[t+1,:,i_h,:,i_Td,i_Tda,:],d_plus,
+                                                                                  w_plus,m_plus_gross_buy,inv_marg_u_buy_plus)
+                                
+                                # condition on renting this period (buyers need not interpolate on grid_d_prime)
+                                if h == 0: 
+                                    prep_buy_h0 = prep_rent = linear_interp.interp_2d_prep(par.grid_w,w_plus,par.Na)
+                                    #test_grid = np.linspace(0.1,1,10)
+                                    linear_interp.interp_2d_only_last_vec_mon(prep_buy_h0,par.grid_w,par.grid_m,
+                                                                              sol.inv_v_buy[t+1,:,i_h,i_dp,i_Td,i_Tda,:],
+                                                                              w_plus,m_plus_gross_buy,inv_v_buy_plus)
+                                    linear_interp.interp_2d_only_last_vec_mon_rep(prep_buy_h0,par.grid_w,par.grid_m,
+                                                                              sol.inv_marg_u_buy[t+1,:,i_h,i_dp,i_Td,i_Tda,:],
                                                                               w_plus,m_plus_gross_buy,inv_marg_u_buy_plus)
                                 
                                 # oooo. max and accumulate
                                     ## find best rental choice given states
                                 rent_choice = np.nan*np.zeros(par.Na)                                                            
                                 for i_a in range(par.Na):
-                                    discrete_rent = np.array(inv_v_rent_plus[i_a,0],
+                                    discrete_rent = np.array([inv_v_rent_plus[i_a,0],
                                                              inv_v_rent_plus[i_a,1],
-                                                             inv_v_rent_plus[i_a,2])
+                                                             inv_v_rent_plus[i_a,2]])
                                     rent_choice[i_a] = np.argmax(discrete_rent)
                                     
                                     ## find best discrete choice given states
                                 for i_a in range(par.Na):  
                                     if h == 0:
                                         discrete = np.array([inv_v_buy_plus[i_a],
-                                                            inv_v_rent_plus[i_a,rent_choice[i_a]]])
+                                                            inv_v_rent_plus[i_a,int(rent_choice[i_a])]])
                                         choice = np.argmax(discrete) # 0 = buy, 1 = rent
                                         if choice == 0:     
                                             v_plus = -1/inv_v_buy_plus[i_a]
                                             marg_u_plus = 1/inv_marg_u_buy_plus[i_a]
                                         else: 
-                                            v_plus = -1/inv_v_rent_plus[i_a,rent_choice[i_a]]
-                                            marg_u_plus = -1/inv_marg_u_rent_plus[i_a,rent_choice[i_a]]
+                                            v_plus = -1/inv_v_rent_plus[i_a,int(rent_choice[i_a])]
+                                            marg_u_plus = -1/inv_marg_u_rent_plus[i_a,int(rent_choice[i_a])]
                                     else:                                   
                                         discrete = np.array([inv_v_stay_plus[i_a],
                                                             inv_v_ref_plus[i_a],
                                                             inv_v_buy_plus[i_a],
-                                                            inv_v_rent_plus[i_a,rent_choice[i_a]]])
+                                                            inv_v_rent_plus[i_a,int(rent_choice[i_a])]])
                                         choice = np.argmax(discrete) # 0 = stay, 1 = ref, 2 = buy, 3 = rent
                                         if choice == 0:
                                             v_plus = -1/inv_v_stay_plus[i_a]
@@ -261,14 +270,17 @@ def postdecision_compute_v_bar_q(t,sol,par,compute_q=True):
                                             v_plus = -1/inv_v_buy_plus[i_a]
                                             marg_u_plus = 1/inv_marg_u_buy_plus[i_a]
                                         else: 
-                                            v_plus = -1/inv_v_rent_plus[i_a,rent_choice[i_a]]
-                                            marg_u_plus = -1/inv_marg_u_rent_plus[i_a,rent_choice[i_a]]
+                                            v_plus = -1/inv_v_rent_plus[i_a,int(rent_choice[i_a])]
+                                            marg_u_plus = -1/inv_marg_u_rent_plus[i_a,int(rent_choice[i_a])]
                                     v_bar[i_a] += weight*par.beta*v_plus
                                     q[i_a,i_h,i_dp,i_Td,i_Tda,i_w] += weight*par.beta*(1+par.r)*marg_u_plus
 
                             # v. transform post decision value function
                             for i_a in range(par.Na):
                                 inv_v_bar[i_a,i_h,i_dp,i_Td,i_Tda,i_w] = -1/v_bar[i_a]
+                            count += 1
+                            if count%100 == 0:
+                                print(f'Iteration number {count}')
 
 
 ####################
@@ -298,9 +310,10 @@ def solve_stay(t,sol,par):
             for i_Tda in range(np.fmax(par.Tda_bar,par.T-t)):
                 for i_Td in range(Td_max-par.Td_bar):
                     for i_h in range(par.Nh):
-                        count = count+1
-                        if count%10**6 == 0: 
-                            print(f'Iteration no. {count}')
+                        ## count and print
+                        #count = count+1
+                        #if count%10**6 == 0: 
+                        #    print(f'Iteration no. {count}')
 
                         # i. temporary container and states
                         v_stay_vec = np.zeros(par.Nm)
@@ -350,9 +363,10 @@ def solve_stay_vec(t,sol,par):
     #        for i_Tda in prange(np.fmax(par.Tda_bar+1,par.T-t)):
     #            for i_Td in prange(Td_max-par.Td_bar):
     for i_h in prange(par.Nh):
-        count = count+1
-        if count%10**6 == 0: 
-            print(f'Iteration no. {count}')
+        ## count and print
+        #count = count+1
+        #if count%10**6 == 0: 
+        #    print(f'Iteration no. {count}')
         # i. temporary container and states
         v_stay_vec = np.zeros(par.Nm)
         h = par.grid_h[i_h]
