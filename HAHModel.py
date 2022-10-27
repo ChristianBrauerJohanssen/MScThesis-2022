@@ -143,10 +143,10 @@ class HAHModelClass(EconModelClass):
         #par.Nd_prime = 10                               # number of points in mortgage balance grid post
         #par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
         
-        par.Nm = 35                                     # number of points in cash on hand grid
+        par.Nm = 10                                     # number of points in cash on hand grid
         par.m_max = 10.0                                # maximum cash-on-hand level  
     
-        par.Na = 35                                     # number of points in assets grid
+        par.Na = 10                                    # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets
 
         ## h. simulation
@@ -163,7 +163,6 @@ class HAHModelClass(EconModelClass):
         par.euler_cutoff = 0.02                         # euler error cutoff
 
         # i. misc
-        #par.solmethod = 'negm'                          # default solution method
         par.t = 0                                       # initial time
         par.tol = 1e-12                                 # solution precision tolerance
         par.do_print = False                            # whether to print solution progress
@@ -186,18 +185,11 @@ class HAHModelClass(EconModelClass):
         
         par = self.par
 
-        #if par.solmethod == 'negm': 
-        #    par.do_marg_u = True                       # endogenous grid point method setting
-
-        # a. beginning of period states (income is approxed by Np-state Markov Proces)
+        # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
         par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='float32')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-        #par.grid_d = np.linspace(0,par.d_max,par.Nd)   
-        #par.grid_d_prime = equilogspace(0,par.d_prime_max,par.Nd_prime)
-
-        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='float32')
-        # strictly speaking, htilde is not a state
-
+        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='float32') # strictly speaking, htilde is not a state
+        
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)
         
@@ -217,7 +209,7 @@ class HAHModelClass(EconModelClass):
 
             # iii. combined
         par.Nw = par.Nxi*par.Np
-        par.w_grid = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
+        par.grid_w = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
         par.w_trans = np.kron(par.xi_trans,par.p_trans)
         par.w_trans_cumsum = np.cumsum(par.p_trans,axis=1)
         par.w_ergodic = find_ergodic(par.p_trans)
@@ -380,11 +372,7 @@ class HAHModelClass(EconModelClass):
                     
                     # i. compute post-decision functions
                     tic_w = time.time()
-
-                    #if par.solmethod == 'negm': 
                     hhp.post_decision_compute_wq(t,sol,par,compute_q=True)                
-                    #else: 
-                    #    pass
                     toc_w = time.time()
                     par.time_wq[t] = toc_w-tic_w
                     print(f' w and q computed in {toc_w-tic_w:.1f} secs')
@@ -395,12 +383,6 @@ class HAHModelClass(EconModelClass):
 
                     # ii. solve and time stayer problem
                     tic_stay = time.time()
-                    
-                    #if par.solmethod == 'vfi':
-                    #    vfi.solve_stay(t,sol,par)
-                    #elif par.solmethod == 'nvfi':                
-                    #    nvfi.solve_stay(t,sol,par)
-                    #elif par.solmethod == 'negm':
                     hhp.solve_stay(t,sol,par)
                     toc_stay = time.time()
                     par.time_stay[t] = toc_stay-tic_stay
@@ -427,12 +409,11 @@ class HAHModelClass(EconModelClass):
                         assert np.all((sol.inv_v_ref[t] >= 0) & (np.isnan(sol.inv_v_ref[t]) == False)), t
                     
                     # iv. solve and time buyer problem
-
                     tic_buy = time.time()
                     hhp.solve_buy(t,sol,par)                  
                     toc_buy = time.time()
-
                     par.time_buy[t] = toc_buy-tic_buy
+
                     if par.do_print:
                         print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
 
@@ -443,12 +424,11 @@ class HAHModelClass(EconModelClass):
                         assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
 
                     # v. solve and time renter problem
-
                     tic_rent = time.time()
                     hhp.solve_rent(t,sol,par)                  
                     toc_rent = time.time()
-
                     par.time_rent[t] = toc_rent-tic_rent
+                    
                     if par.do_print:
                         print(f' solved renter problem in {toc_rent-tic_rent:.1f} secs')
 

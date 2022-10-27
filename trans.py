@@ -24,6 +24,7 @@ def w_plus_func(p_plus,xi,work,par):
         w_plus = par.b
     else:
         w_plus = (xi*p_plus-par.pi*par.b)/(1-par.pi)
+    return w_plus
 
 # 3. cash on hand
 @njit(fastmath=True)
@@ -70,10 +71,10 @@ def Tda_plus_func(Tda):
     return np.fmax(0,Tda-1)
 
 @njit(fastmath=True)
-def d_plus_func(q,h,d,w,t,Td,Tda,par,move,ref):
-    if move or ref:
-        d_plus = (1+par.r_m)*np.fmin(par.omega_ltv*q*h,par.omega_dti*w)
-    elif Tda > 0:
+def d_plus_func(q,h,d,w,t,Td,Tda,par):
+    #if move or ref:
+    #    d_plus = (1+par.r_m)*np.fmin(par.omega_ltv*q*h,par.omega_dti*w)
+    if Tda > 0:
         d_plus = d
     else: 
         mp,_,_,_ = mt.mpmt(d,t,Td,Tda,par)
