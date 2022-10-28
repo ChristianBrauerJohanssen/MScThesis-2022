@@ -186,9 +186,9 @@ class HAHModelClass(EconModelClass):
         par = self.par
 
         # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
-        par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='float32')
+        par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='float32') # strictly speaking, htilde is not a state
+        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double') # strictly speaking, htilde is not a state
         
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)
@@ -282,10 +282,10 @@ class HAHModelClass(EconModelClass):
         sol = self.sol
 
         # a. shapes
-        own_shape = (par.T,par.Nm,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
-        buy_shape = (par.T,par.Nm,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
-        rent_shape = (par.T,par.Nm,par.Nhtilde,par.Nw)
-        post_shape = (par.T,par.Na,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw)
+        own_shape = (par.T,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw,par.Nm)
+        buy_shape = (par.T,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw,par.Nm)
+        rent_shape = (par.T,par.Nhtilde,par.Nw,par.Nm)
+        post_shape = (par.T,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw,par.Na)
 
         # b. stay        
         sol.c_stay = np.zeros(own_shape)
@@ -319,15 +319,8 @@ class HAHModelClass(EconModelClass):
 
         sol.c_endo_stay = np.nan*np.zeros(post_shape)
         sol.m_endo_stay = np.nan*np.zeros(post_shape)
-        sol.c_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw)) 
-        sol.m_endo_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw))
-     
-        #sol.inv_v_bar_stay = np.nan*np.zeros(post_shape)
-        #sol.inv_v_bar_ref = np.nan*np.zeros(post_shape)
-        #sol.inv_v_bar_buy = np.nan*np.zeros(post_shape)
-        #sol.inv_v_bar_rent = np.nan*np.zeros((par.T,par.Na,par.Nhtilde,par.Nw))
-        #sol.q_stay = np.nan*np.zeros(post_shape)
-        #sol.q_rent = np.nan*np.zeros(post_shape)
+        sol.c_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na)) 
+        sol.m_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na))
 
 
     def solve(self,do_assert=True):
