@@ -125,10 +125,6 @@ class HAHModelClass(EconModelClass):
         par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
 
         # g. grids
-        #par.Np = 50                                     # number of points in permanent income grid
-        #par.p_min = 1e-4                                # minimum permanent income
-        #par.p_max = 3.0                                 # maximum permanent income
-
         par.Nh = 6                                      # number of points in owner occupied housing grid
         par.h_min = 1.42                                # minimum owner occupied houze size 
         par.h_max = 5.91                                # maximum owner occupied house size
@@ -220,7 +216,7 @@ class HAHModelClass(EconModelClass):
         np.random.seed(par.sim_seed)
 
         # e. timing
-        par.time_wq = np.zeros(par.T)
+        par.time_vbarq = np.zeros(par.T)
         par.time_stay = np.zeros(par.T)
         par.time_ref = np.zeros(par.T)
         par.time_buy = np.zeros(par.T)
@@ -240,16 +236,21 @@ class HAHModelClass(EconModelClass):
 
         tic = time.time()
 
-        # a. define
+        # a. define points in coarse grids
         fastpar = dict()
         fastpar['do_print'] = False
         fastpar['do_print_period'] = False
-        fastpar['T'] = 2
+        fastpar['T'] = 3
+        fastpar['Td_bar'] = 2
+        fastpar['Tda_bar'] = 1
+        fastpar['Np'] = 3
+        fastpar['Nxi'] = 1
+        fastpar['Nh'] = 6
+        fastpar['Nhtilde'] = 3 
+        fastpar['Nd'] = 2
         fastpar['Nm'] = 3
-        fastpar['Nd'] = 3
-        fastpar['Nd_prime'] = 5
         fastpar['Na'] = 3
-        fastpar['simN'] = 2
+        #fastpar['simN'] = 2 # add when simulation module is done
 
         # b. apply
         for key,val in fastpar.items():
@@ -345,10 +346,22 @@ class HAHModelClass(EconModelClass):
                 par = model.par
                 sol = model.sol
                 
-                # a. last period
+                # a. last period or post decision
                 if t == par.T-1:
+                    tic_w = time.time()
                     hhp.last_period_v_bar_q(t,sol,par)
-                
+                    toc_w = time.time()
+                    par.time_vbarq[t] = toc_w-tic_w
+                    if par.do_print:
+                        print(f' last period bequest computed computed in {toc_w-tic_w:.1f} secs')
+                else: 
+                    tic_w = time.time()
+                    hhp.postdecision_compute_v_bar_q(t,sol,par)                
+                    toc_w = time.time()
+                    par.time_vbarq[t] = toc_w-tic_w
+                    if par.do_print:
+                        print(f' v_bar and q computed in {toc_w-tic_w:.1f} secs')
+
                 ## add more asserts here and slice properly!
                     if do_assert:
                         assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False))
@@ -361,74 +374,57 @@ class HAHModelClass(EconModelClass):
                         assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False))
 
                 # b. all other periods
-                else:
-                    
-                    # i. compute post-decision functions
-                    tic_w = time.time()
-                    hhp.post_decision_compute_wq(t,sol,par,compute_q=True)                
-                    toc_w = time.time()
-                    par.time_wq[t] = toc_w-tic_w
-                    print(f' w and q computed in {toc_w-tic_w:.1f} secs')
-
-                    #if do_assert:
-                    #    assert np.all((sol.inv_v_bar_stay[t] > 0) & (np.isnan(sol.inv_bar_[t]) == False)), t                                                        
-                    #    assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
-
-                    # ii. solve and time stayer problem
-                    tic_stay = time.time()
-                    hhp.solve_stay(t,sol,par)
-                    toc_stay = time.time()
-                    par.time_stay[t] = toc_stay-tic_stay
-                    
-                    if par.do_print:
-                        print(f' solved stayer problem in {toc_stay-tic_stay:.1f} secs')
-
-                    if do_assert:
-                        assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False)), t
-                        assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False)), t
-
-                    # iii. solve and time refinance problem
-                    tic_ref = time.time()
-                    hhp.solve_ref(t,sol,par)                  
-                    toc_ref = time.time()
-                    par.time_ref[t] = toc_ref-tic_ref
-
-                    if par.do_print:
-                        print(f' solved refinance problem in {toc_ref-tic_ref:.1f} secs')
-
-                    if do_assert:
-                        assert np.all((sol.c_ref[t] >= 0) & (np.isnan(sol.c_ref[t]) == False)), t
-                        assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False)), t
-                        assert np.all((sol.inv_v_ref[t] >= 0) & (np.isnan(sol.inv_v_ref[t]) == False)), t
-                    
-                    # iv. solve and time buyer problem
-                    tic_buy = time.time()
-                    hhp.solve_buy(t,sol,par)                  
-                    toc_buy = time.time()
-                    par.time_buy[t] = toc_buy-tic_buy
-
-                    if par.do_print:
-                        print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
-
-                    if do_assert:
-                        assert np.all((sol.c_buy[t] >= 0) & (np.isnan(sol.c_buy[t]) == False)), t
-                        assert np.all((sol.d_prime_buy[t] >= 0) & (np.isnan(sol.d_prime_buy[t]) == False)), t
-                        assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t]) == False)), t
-                        assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
-
-                    # v. solve and time renter problem
-                    tic_rent = time.time()
-                    hhp.solve_rent(t,sol,par)                  
-                    toc_rent = time.time()
-                    par.time_rent[t] = toc_rent-tic_rent
-                    
-                    if par.do_print:
-                        print(f' solved renter problem in {toc_rent-tic_rent:.1f} secs')
-
-                    if do_assert:
-                        assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False)), t
-                        assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False)), t
-                        assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False)), t
+                             
+                if do_assert:
+                    assert np.all((sol.inv_v_bar_stay[t] > 0) & (np.isnan(sol.inv_bar_[t]) == False)), t                                                        
+                    assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
+                # ii. solve and time stayer problem
+                tic_stay = time.time()
+                hhp.solve_stay(t,sol,par)
+                toc_stay = time.time()
+                par.time_stay[t] = toc_stay-tic_stay
+                
+                if par.do_print:
+                    print(f' solved stayer problem in {toc_stay-tic_stay:.1f} secs')
+                if do_assert:
+                    assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False)), t
+                    assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False)), t
+                # iii. solve and time refinance problem
+                tic_ref = time.time()
+                hhp.solve_ref(t,sol,par)                  
+                toc_ref = time.time()
+                par.time_ref[t] = toc_ref-tic_ref
+                if par.do_print:
+                    print(f' solved refinance problem in {toc_ref-tic_ref:.1f} secs')
+                if do_assert:
+                    assert np.all((sol.c_ref[t] >= 0) & (np.isnan(sol.c_ref[t]) == False)), t
+                    assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False)), t
+                    assert np.all((sol.inv_v_ref[t] >= 0) & (np.isnan(sol.inv_v_ref[t]) == False)), t
+                
+                # iv. solve and time buyer problem
+                tic_buy = time.time()
+                hhp.solve_buy(t,sol,par)                  
+                toc_buy = time.time()
+                par.time_buy[t] = toc_buy-tic_buy
+                if par.do_print:
+                    print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
+                if do_assert:
+                    assert np.all((sol.c_buy[t] >= 0) & (np.isnan(sol.c_buy[t]) == False)), t
+                    assert np.all((sol.d_prime_buy[t] >= 0) & (np.isnan(sol.d_prime_buy[t]) == False)), t
+                    assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t]) == False)), t
+                    assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
+                # v. solve and time renter problem
+                tic_rent = time.time()
+                hhp.solve_rent(t,sol,par)                  
+                toc_rent = time.time()
+                par.time_rent[t] = toc_rent-tic_rent
+                
+                if par.do_print:
+                    print(f' solved renter problem in {toc_rent-tic_rent:.1f} secs')
+                if do_assert:
+                    assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False)), t
+                    assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False)), t
+                    assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False)), t
 
                 # c. print
                 toc = time.time()
@@ -438,7 +434,7 @@ class HAHModelClass(EconModelClass):
         
         # print total timings
         if par.do_print:
-            print(f' total precomputation time  = {par.time_wq.sum():.1f} secs')
+            print(f' total precomputation time  = {par.time_vbarq.sum():.1f} secs')
             print(f' total stay-time  = {par.time_stay.sum():.1f} secs')
             print(f' total ref-time   = {par.time_ref.sum():.1f} secs')
             print(f' total buy-time   = {par.time_buy.sum():.1f} secs')
