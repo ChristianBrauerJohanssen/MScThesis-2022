@@ -37,8 +37,8 @@ def last_period_v_bar_q(t,sol,par):
     Td_max = mt.Td_func(t,par)
     
     # c. compute post decision given by bequest 
-    for i_Tda in prange(2): # last period means either 
-        for i_Td in prange(Td_max-par.Td_bar):
+    for i_Tda in prange(2): 
+        for i_Td in prange(par.Td_shape):
             for i_h in range(par.Nh+1):
                 
                 # i. own or rent?
@@ -55,7 +55,7 @@ def last_period_v_bar_q(t,sol,par):
                     for i_a in range(par.Na):
                         
                         # o. mortgage? 
-                        if i_Td < t: 
+                        if Td_max < t: 
                             d = 0
                         else: 
                             d = grid_d[i_d]
@@ -80,8 +80,8 @@ def postdecision_compute_v_bar_q(t,sol,par):
     inv_v_bar = sol.inv_v_bar[t]
     q = sol.q[t]
 
-    # b. find terminal period
-    Td_max = mt.Td_func(t,par)
+    # b. restrict loop over terminal periods
+    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
 
     # c. counter
     count = 0 
@@ -117,12 +117,12 @@ def postdecision_compute_v_bar_q(t,sol,par):
         for i_h in prange(par.Nh+1):
             # housing stock (own or rent)
             if i_h == 0: 
-                h = 0.0
+                h = 0
             else: 
                 h = par.grid_h[i_h-1]
 
-            for i_Td in range(Td_max-par.Td_bar):
-                    for i_Tda in range(np.fmax(par.Tda_bar,par.T-t)):
+            for i_Td in range(Td_len):
+                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
                         # mortgage plan and scale grid
                         Tda = i_Tda
                         Td = i_Td + par.Td_bar
@@ -303,20 +303,15 @@ def solve_stay(t,sol,par):
     inv_marg_u_stay = sol.inv_marg_u_stay[t]
     c_stay = sol.c_stay[t]
     
-    # c. set counter and restrict loops
-    count = 0                           # initiate counter
-    Td_max = mt.Td_func(t,par)          # current terminal mortgage period
+    # c. restrict loop over terminal periods
+    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
 
     # d. loop through states
     for i_w in prange(par.Nw):
         for i_d in prange(par.Nd): 
-            for i_Tda in range(np.fmax(par.Tda_bar,par.T-t)):
-                for i_Td in range(Td_max-par.Td_bar):
+            for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
+                for i_Td in range(Td_len):
                     for i_h in range(par.Nh):
-                        ## count and print
-                        #count = count+1
-                        #if count%10**6 == 0: 
-                        #    print(f'Iteration no. {count}')
 
                         # i. temporary container and states
                         v_stay_vec = np.zeros(par.Nm)
@@ -377,17 +372,16 @@ def solve_ref(t,sol,par):
     inv_v_stay = sol.inv_v_stay[t]
     c_stay = sol.c_stay[t]
     grid_m = par.grid_m
-    grid_Tda = np.arange(0,np.fmax(par.Tda_bar+1,par.T-t),1)
+    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t),1)
     
     nu = par.nu
     rho = par.rho
     n = par.n[t]
 
-    # find mortage period and et counter 
-    Td_max = mt.Td_func(t,par)          # current terminal mortgage period
-    count = 0                           # initiate counter
+    # c. restrict loop over terminal periods
+    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape)
 
-    # c. loop over outer states
+    # d. loop over outer states
     for i_w in prange(par.Nw):
         w = par.grid_w[i_w]
         for i_h in prange(par.Nh):
@@ -395,8 +389,8 @@ def solve_ref(t,sol,par):
             grid_d = np.linspace(0,par.q*h,par.Nd)
             for i_d in range(par.Nd):
                 d = grid_d[i_d]
-                for i_Td in range(Td_max-par.Td_bar):
-                    for i_Tda in range(par.Tda_bar):
+                for i_Td in range(Td_len):
+                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
 
                         # i. loop over cash on hand state
                         for i_m in range(par.Nm):                        
@@ -404,8 +398,8 @@ def solve_ref(t,sol,par):
                             m_gross = m-d-par.delta*par.q*h-mt.property_tax(par.q,h,par)
                             # o. enforce financial regulation
                                 ## terminal mortgage period
-                            Td_new = mt.Td_func(t,par) 
-                            i_Td_new = int(Td_new - par.Td_bar)
+                            Td_new = mt.Td_func(t,par) # fx 30 years old --> t = 5, Td_new = 35
+                            i_Td_new = int(Td_new - par.Td_bar) # i_Td new = 5
 
                                 ## scale post decision mortgage grid
                             d_prime_high = np.fmin(par.omega_ltv*par.q*h,par.omega_dti*w) 
@@ -413,9 +407,6 @@ def solve_ref(t,sol,par):
 
                             # oo. loop over mortage plan choices 
                             inv_v_ref_best = 0
-                            d_prime_best = np.nan
-                            #Tda_best = np.nan
-                            #i_dp_best = np.nan
 
                             for i_dp in range(par.Nd): 
                                 for Tda in range(max(grid_Tda)):
@@ -493,17 +484,16 @@ def solve_buy(t,sol,par):
     c_stay = sol.c_stay[t]
     grid_m = par.grid_m
     grid_h = par.grid_h
-    grid_Tda = np.arange(0,np.fmax(par.Tda_bar+1,par.T-t),1)
+    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t),1)
     
     nu = par.nu
     rho = par.rho
     n = par.n[t]
     
-    # find mortage period and et counter 
-    Td_max = mt.Td_func(t,par)          # current terminal mortgage period
-    count = 0                           # initiate counter
-
-    # c. loop over outer states
+    # c. restrict loop over terminal mortgage periods 
+    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape)
+    
+    # d. loop over outer states
     for i_w in prange(par.Nw):
         w = par.grid_w[i_w]
         for i_h in prange(par.Nh+1):
@@ -518,8 +508,8 @@ def solve_buy(t,sol,par):
 
             for i_d in range(par.Nd):
                 d = grid_d[i_d]
-                for i_Td in range(Td_max-par.Td_bar): 
-                    for i_Tda in range(par.Tda_bar):
+                for i_Td in range(Td_len): 
+                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
 
                         # i. loop over cash on hand and house purchase
                         for i_m in range(par.Nm):                        
@@ -539,11 +529,6 @@ def solve_buy(t,sol,par):
 
                                 # oo. loop over mortage plan choices 
                                 inv_v_buy_best = 0
-                                d_prime_best = np.nan
-                                #Tda_best = np.nan
-                                hbuy_best = np.nan
-                                #i_hb_best = np.nan
-                                #i_dp_best = np.nan
 
                                 for i_dp in range(len(grid_d_prime)): 
                                     for Tda in range(max(grid_Tda)):

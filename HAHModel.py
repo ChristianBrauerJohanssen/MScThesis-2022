@@ -100,8 +100,10 @@ class HAHModelClass(EconModelClass):
         par.omega_dti = 5                               # debt-to-income ratio
         par.Cp_ref = 0.05                               # proportional refinancing cost
         par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
-        par.Td_bar = 31                                 # maximum regulatory mortgage term length +1
+        par.Td_bar = 30                                 # maximum regulatory mortgage term length
+        par.Td_shape = 27                               # sample space for mortgage terminal periods
         par.Tda_bar = 11                                # maximum terms with deferred amortisation +1
+        
 
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
@@ -241,6 +243,7 @@ class HAHModelClass(EconModelClass):
         fastpar['do_print'] = False
         fastpar['do_print_period'] = False
         fastpar['T'] = 3
+        fastpar['Td_shape'] = 2
         fastpar['Td_bar'] = 2
         fastpar['Tda_bar'] = 1
         fastpar['Np'] = 3
@@ -283,10 +286,10 @@ class HAHModelClass(EconModelClass):
         sol = self.sol
 
         # a. shapes
-        own_shape = (par.T,par.Nh,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw,par.Nm)
-        buy_shape = (par.T,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw,par.Nm)
+        own_shape = (par.T,par.Nh,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
+        buy_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
         rent_shape = (par.T,par.Nhtilde,par.Nw,par.Nm)
-        post_shape = (par.T,par.Nh+1,par.Nd,par.T-par.Td_bar,par.Tda_bar,par.Nw,par.Na)
+        post_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Na)
 
         # b. stay        
         sol.c_stay = np.zeros(own_shape)
