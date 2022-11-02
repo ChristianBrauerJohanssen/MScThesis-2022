@@ -44,7 +44,7 @@ class HAHModelClass(EconModelClass):
         """ fundamental settings """
 
         # a. namespaces 
-        self.namespaces = ['par','sim','sol'] 
+        self.namespaces = ['par','sim','sol','ss'] 
         
         # b. other attributes
         self.other_attrs = []
@@ -122,11 +122,11 @@ class HAHModelClass(EconModelClass):
         par.qh_bar = 3_040_000/par.median_income        # top-bracket property tax threshold
         par.rd_bar = 75_000/par.median_income           # high tax value of interest deduction threshold
 
-        # l. price guesses for stationary equilibrium
+        # g. price guesses for stationary equilibrium
         par.q = 1.0                                                     # house price guess
         par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
 
-        # g. grids
+        # h. grids
         par.Nh = 6                                      # number of points in owner occupied housing grid
         par.h_min = 1.42                                # minimum owner occupied houze size 
         par.h_max = 5.91                                # maximum owner occupied house size
@@ -136,10 +136,6 @@ class HAHModelClass(EconModelClass):
         par.htilde_max = 1.89                           # maximum rental house size
 
         par.Nd = 10                                     # number of points in mortgage balance grid
-        par.d_max = par.q*par.h_max                     # placeholder maximum mortgage size
-
-        #par.Nd_prime = 10                               # number of points in mortgage balance grid post
-        #par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
         
         par.Nm = 10                                     # number of points in cash on hand grid
         par.m_max = 15.0                                # maximum cash-on-hand level  
@@ -147,25 +143,24 @@ class HAHModelClass(EconModelClass):
         par.Na = 10                                    # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets
 
-        ## h. simulation
-        #par.sigma_p0 = 0.2                              # standard dev. of initial permanent income
-        #par.mu_d0 = 0.8                                 # mean initial housing level 
-        #
-        #par.sigma_d0 = 0.2                              # standard dev. of initial housing level
-        #par.mu_a0 = 0.2                                 # mean initial assets
-        #
-        #par.sigma_a0 = 0.1                              # standard dev. of initial assets
-        #
+        # i. simulation
+        par.sigma_p0 = 0.2                              # standard dev. of initial permanent income
+        par.mu_d0 = 0.8                                 # mean initial housing level 
+        
+        par.sigma_d0 = 0.2                              # standard dev. of initial housing level
+        par.mu_a0 = 0.2                                 # mean initial assets
+        
+        par.sigma_a0 = 0.1                              # standard dev. of initial assets
+        
         par.simN = 10_000                               # number of simulated agents
         par.sim_seed = 1995                             # seed for random number generator
         par.euler_cutoff = 0.02                         # euler error cutoff
 
-        # i. misc
+        # j. misc
         par.t = 0                                       # initial time
         par.tol = 1e-12                                 # solution precision tolerance
         par.do_print = False                            # whether to print solution progress
         par.do_print_period = False                     # whether to print solution progress every period
-        #par.do_marg_u = True                           # calculate marginal utility for use in egm
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
         par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
 
@@ -214,6 +209,10 @@ class HAHModelClass(EconModelClass):
         par.w_ergodic_cumsum = np.cumsum(par.p_ergodic)
         par.w_trans_T = par.p_trans.T
 
+            # iv. unemployment
+        
+            # v. house price
+
         # d. set seed
         np.random.seed(par.sim_seed)
 
@@ -253,7 +252,7 @@ class HAHModelClass(EconModelClass):
         fastpar['Nd'] = 2
         fastpar['Nm'] = 3
         fastpar['Na'] = 3
-        #fastpar['simN'] = 2 # add when simulation module is done
+        fastpar['simN'] = 2
 
         # b. apply
         for key,val in fastpar.items():
@@ -267,7 +266,7 @@ class HAHModelClass(EconModelClass):
         self.solve(do_assert=False)
 
         # d. simulate
-        #self.simulate()
+        self.simulate()
 
         # e. reiterate
         for key,val in fastpar.items():
@@ -465,103 +464,98 @@ class HAHModelClass(EconModelClass):
         par = self.par
         sim = self.sim
 
-    #  # a. initial and final
-    #  sim.p0 = np.zeros(par.simN)
-    #  sim.d0 = np.zeros(par.simN)
-    #  sim.a0 = np.zeros(par.simN)
+        # a. initial and final
+        sim.p0 = np.zeros(par.simN)
+        sim.d0 = np.zeros(par.simN)
+        sim.a0 = np.zeros(par.simN)
 
-    #  sim.utility = np.zeros(par.simN)
+        sim.utility = np.zeros(par.simN)
 
-    #  # b. states and choices
-    #  sim_shape = (par.T,par.simN)
-    #  sim.p = np.zeros(sim_shape)
-    #  sim.y = np.zeros(sim_shape)
-    #  sim.m = np.zeros(sim_shape)
+        # b. states and choices
+        sim_shape = (par.T,par.simN)
+        sim.h = np.zeros(sim_shape)
+        sim.d = np.zeros(sim_shape)
+        sim.Td = np.zeros(sim_shape)
+        sim.Tda = np.zeros(sim_shape)
+        sim.p = np.zeros(sim_shape)
+        sim.y = np.zeros(sim_shape)
+        sim.m = np.zeros(sim_shape)
 
-    #  sim.n = np.zeros(sim_shape)
-    #  sim.discrete = np.zeros(sim_shape,dtype=np.int)
+        sim.d_prime = np.zeros(sim_shape)
+        sim.Tda_prime = np.zeros(sim_shape)
+        sim.discrete = np.zeros(sim_shape,dtype=np.int)  
+        sim.c = np.zeros(sim_shape)
+        sim.a = np.zeros(sim_shape)
+        
+        #sim.c_bump = np.zeros(sim_shape)
+        #sim.mpc = np.zeros(sim_shape)
+        
+        # c. euler
+        euler_shape = (par.T-1,par.simN)
+        sim.euler_error = np.zeros(euler_shape)
+        sim.euler_error_c = np.zeros(euler_shape)
+        sim.euler_error_rel = np.zeros(euler_shape)  
+        
+        # d. shocks
+        sim.psi = np.zeros(sim_shape)
+        sim.xi = np.zeros(sim_shape)
+        sim.u = np.zeros(sim_shape)
+        #sim.z = np.zeros(par.T)    # economy wide shock
 
-    #  sim.d = np.zeros(sim_shape)
-    #  sim.c = np.zeros(sim_shape)
-    #  sim.c_bump = np.zeros(sim_shape)
-    #  sim.a = np.zeros(sim_shape)
-    #  sim.mpc = np.zeros(sim_shape)
-    #  
-    #  # c. euler
-    #  euler_shape = (par.T-1,par.simN)
-    #  sim.euler_error = np.zeros(euler_shape)
-    #  sim.euler_error_c = np.zeros(euler_shape)
-    #  sim.euler_error_rel = np.zeros(euler_shape)
+    def simulate(self,do_utility=False,do_euler_error=False):  #,seed=1998):
+      """ simulate the model """
+      par = self.par
+      sol = self.sol
+      sim = self.sim
+      tic = time.time()
 
-    #  # d. shocks
-    #  sim.psi = np.zeros((par.T,par.simN))
-    #  sim.xi = np.zeros((par.T,par.simN))
-    #  sim.z = np.zeros(par.T)    # economy wide shock
+      # a. random shocks
+      sim.p0[:] = np.random.lognormal(mean=-0.2,sigma=par.sigma_p0,size=par.simN)
+      sim.d0[:] = par.mu_d0*np.random.lognormal(mean=-0.2,sigma=par.sigma_d0,size=par.simN)
+      sim.a0[:] = par.mu_a0*np.random.lognormal(mean=-0.2,sigma=par.sigma_a0,size=par.simN)
+      I = np.random.choice(par.Nshocks,
+          size=(par.T,par.simN), 
+          p=par.psi_w*par.xi_w*par.z_w)
+      sim.psi[:,:] = par.psi[I]
+      sim.xi[:,:] = par.xi[I]
+      sim.z[:] = par.z[I[:,0]]
+      
+      # b. call
+      with jit(self) as model:
+          par = model.par
+          sol = model.sol
+          sim = model.sim
+          simulate.lifecycle(sim,sol,par)
+      toc = time.time()
+    
+      if par.do_print:
+          print(f'model simulated in {toc-tic:.1f} secs')
+      
+      # d. euler errors
+      def norm_euler_errors(model):
+          return np.log10(abs(model.sim.euler_error/model.sim.euler_error_c)+1e-8)
+      tic = time.time()        
+      if do_euler_error:
+          with jit(self) as model:
+              par = model.par
+              sol = model.sol
+              sim = model.sim
+              simulate.euler_errors(sim,sol,par)
 
-    #def simulate(self,do_utility=False,do_euler_error=False):  #,seed=1998):
-    #  """ simulate the model """
-
-    #  par = self.par
-    #  sol = self.sol
-    #  sim = self.sim
-
-    #  tic = time.time()
-
-    #  # a. random shocks
-    #  sim.p0[:] = np.random.lognormal(mean=-0.2,sigma=par.sigma_p0,size=par.simN)
-    #  sim.d0[:] = par.mu_d0*np.random.lognormal(mean=-0.2,sigma=par.sigma_d0,size=par.simN)
-    #  sim.a0[:] = par.mu_a0*np.random.lognormal(mean=-0.2,sigma=par.sigma_a0,size=par.simN)
-
-    #  I = np.random.choice(par.Nshocks,
-    #      size=(par.T,par.simN), 
-    #      p=par.psi_w*par.xi_w*par.z_w)
-    #  sim.psi[:,:] = par.psi[I]
-    #  sim.xi[:,:] = par.xi[I]
-    #  sim.z[:] = par.z[I[:,0]]
-
-    #  # b. call
-    #  with jit(self) as model:
-
-    #      par = model.par
-    #      sol = model.sol
-    #      sim = model.sim
-
-    #      simulate.lifecycle(sim,sol,par)
-
-    #  toc = time.time()
-    #  
-    #  if par.do_print:
-    #      print(f'model simulated in {toc-tic:.1f} secs')
-
-    #  # d. euler errors
-    #  def norm_euler_errors(model):
-    #      return np.log10(abs(model.sim.euler_error/model.sim.euler_error_c)+1e-8)
-
-    #  tic = time.time()        
-    #  if do_euler_error:
-
-    #      with jit(self) as model:
-
-    #          par = model.par
-    #          sol = model.sol
-    #          sim = model.sim
-
-    #          simulate.euler_errors(sim,sol,par)
-    #      
-    #      sim.euler_error_rel[:] = norm_euler_errors(self)
-    #  
-    #  toc = time.time()
-    #  if par.do_print:
-    #      print(f'euler errors calculated in {toc-tic:.1f} secs')
-
-    #  # e. utility
-    #  tic = time.time()        
-    #  if do_utility:
-    #      simulate.calc_utility(sim,sol,par)
-    #  
-    #  toc = time.time()
-    #  if par.do_print:
-    #      print(f'utility calculated in {toc-tic:.1f} secs')
+          sim.euler_error_rel[:] = norm_euler_errors(self)
+    
+      toc = time.time()
+      if par.do_print:
+          print(f'euler errors calculated in {toc-tic:.1f} secs')
+      
+      # e. utility
+      tic = time.time()        
+      if do_utility:
+          simulate.calc_utility(sim,sol,par)
+    
+      toc = time.time()
+      if par.do_print:
+          print(f'utility calculated in {toc-tic:.1f} secs')
 
     ################
     #    GenEq     #
@@ -574,20 +568,20 @@ class HAHModelClass(EconModelClass):
     #    Figures   #
     ################
 
-#   def decision_functions(self):
-#       figs.decision_functions(self)
-#
-#   def egm(self):        
-#       figs.egm(self)
-#
-#   def lifecycle(self,quantiles=False):        
-#       figs.lifecycle(self,quantiles=quantiles)
-#
-#   def mpc_over_cash_on_hand(self):
-#       figs.mpc_over_cash_on_hand(self)
-#
-#   def mpc_over_lifecycle(self):
-#       figs.mpc_over_lifecycle(self)
+    #def decision_functions(self):
+    #    figs.decision_functions(self)
+
+    #def egm(self):        
+    #    figs.egm(self)
+ 
+    def lifecycle(self,quantiles=False):        
+        figs.lifecycle(self,quantiles=quantiles)
+ 
+    def mpc_over_cash_on_hand(self):
+        figs.mpc_over_cash_on_hand(self)
+ 
+    def mpc_over_lifecycle(self):
+        figs.mpc_over_lifecycle(self)
 
 
     ################
