@@ -240,10 +240,10 @@ class HAHModelClass(EconModelClass):
 
         # a. define points in coarse grids
         fastpar = dict()
-        fastpar['do_print'] = False
+        #fastpar['do_print'] = False
         fastpar['do_print_period'] = False
         fastpar['T'] = 3
-        fastpar['Td_shape'] = 2
+        fastpar['Td_shape'] = 3
         fastpar['Td_bar'] = 2
         fastpar['Tda_bar'] = 1
         fastpar['Np'] = 3
@@ -336,19 +336,20 @@ class HAHModelClass(EconModelClass):
         
         """
         total_solve_time = 0
-
-        tic = time.time()
         
         # backwards induction
         for t in reversed(range(self.par.T)):
             
             self.par.t = t
+            tic = time.time()
 
             with jit(self) as model:
 
                 par = model.par
                 sol = model.sol
                 
+                Td_len = np.fmin(t+2,par.Td_shape)
+                Tda_len = np.fmin(par.Tda_bar,par.T-t+1)
                 # a. last period or post decision
                 if t == par.T-1:
                     tic_w = time.time()
@@ -356,7 +357,14 @@ class HAHModelClass(EconModelClass):
                     toc_w = time.time()
                     par.time_vbarq[t] = toc_w-tic_w
                     if par.do_print:
-                        print(f' last period bequest computed computed in {toc_w-tic_w:.1f} secs')
+                        print(f' last period bequest computed in {toc_w-tic_w:.1f} secs')
+
+                    if do_assert: 
+                        assert np.all((sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                      (np.isnan(sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        assert np.all((sol.q[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                      (np.isnan(sol.q[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+
                 else: 
                     tic_w = time.time()
                     hhp.postdecision_compute_v_bar_q(t,sol,par)                
@@ -364,24 +372,18 @@ class HAHModelClass(EconModelClass):
                     par.time_vbarq[t] = toc_w-tic_w
                     if par.do_print:
                         print(f' v_bar and q computed in {toc_w-tic_w:.1f} secs')
-
-                ## add more asserts here and slice properly!
-                    if do_assert:
-                        assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False))
-                        assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False))
-                        assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False))
-                        assert np.all((sol.d_prime_buy[t] >= 0) & (np.isnan(sol.d_prime_buy[t]) == False))
-                        assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t] == False)))
-                        assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False))
-                        assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False))
-                        assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False))
-
+                    
+                    if do_assert: 
+                        assert np.all((sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                      (np.isnan(sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        assert np.all((sol.q[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                      (np.isnan(sol.q[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        
+                        #assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False))
+                        #assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t] == False)))
+                
                 # b. all other periods
-                             
-                if do_assert:
-                    assert np.all((sol.inv_v_bar_stay[t] > 0) & (np.isnan(sol.inv_bar_[t]) == False)), t                                                        
-                    assert np.all((sol.q[t] > 0) & (np.isnan(sol.q[t]) == False)), t
-                # ii. solve and time stayer problem
+                    # ii. solve and time stayer problem
                 tic_stay = time.time()
                 hhp.solve_stay(t,sol,par)
                 toc_stay = time.time()
@@ -390,19 +392,26 @@ class HAHModelClass(EconModelClass):
                 if par.do_print:
                     print(f' solved stayer problem in {toc_stay-tic_stay:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_stay[t] >= 0) & (np.isnan(sol.c_stay[t]) == False)), t
-                    assert np.all((sol.inv_v_stay[t] >= 0) & (np.isnan(sol.inv_v_stay[t]) == False)), t
+                    assert np.all((sol.c_stay[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.c_stay[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.inv_v_stay[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.inv_v_stay[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                
                 # iii. solve and time refinance problem
                 tic_ref = time.time()
                 hhp.solve_ref(t,sol,par)                  
                 toc_ref = time.time()
                 par.time_ref[t] = toc_ref-tic_ref
+                
                 if par.do_print:
                     print(f' solved refinance problem in {toc_ref-tic_ref:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_ref[t] >= 0) & (np.isnan(sol.c_ref[t]) == False)), t
-                    assert np.all((sol.d_prime_ref[t] >= 0) & (np.isnan(sol.d_prime_ref[t]) == False)), t
-                    assert np.all((sol.inv_v_ref[t] >= 0) & (np.isnan(sol.inv_v_ref[t]) == False)), t
+                    assert np.all((sol.c_ref[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.c_ref[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.d_prime_ref[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.d_prime_ref[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.inv_v_ref[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.inv_v_ref[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
                 
                 # iv. solve and time buyer problem
                 tic_buy = time.time()
@@ -412,10 +421,13 @@ class HAHModelClass(EconModelClass):
                 if par.do_print:
                     print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_buy[t] >= 0) & (np.isnan(sol.c_buy[t]) == False)), t
-                    assert np.all((sol.d_prime_buy[t] >= 0) & (np.isnan(sol.d_prime_buy[t]) == False)), t
-                    assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t]) == False)), t
-                    assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
+                    assert np.all((sol.c_buy[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.c_buy[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.d_prime_buy[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) &
+                                  (np.isnan(sol.d_prime_buy[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.inv_v_buy[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.inv_v_buy[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                
                 # v. solve and time renter problem
                 tic_rent = time.time()
                 hhp.solve_rent(t,sol,par)                  
@@ -425,10 +437,9 @@ class HAHModelClass(EconModelClass):
                 if par.do_print:
                     print(f' solved renter problem in {toc_rent-tic_rent:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False)), t
-                    assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False)), t
-                    assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False)), t
-
+                    assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False))
+                    assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False))
+                
                 # c. print
                 toc = time.time()
                 total_solve_time += toc-tic

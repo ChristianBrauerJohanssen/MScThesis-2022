@@ -81,7 +81,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
     q = sol.q[t]
 
     # b. restrict loop over terminal periods
-    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
+    Td_len = np.fmin(t+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
 
     # c. counter
     count = 0 
@@ -122,7 +122,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                 h = par.grid_h[i_h-1]
 
             for i_Td in range(Td_len):
-                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
+                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t+1)):
                         # mortgage plan and scale grid
                         Tda = i_Tda
                         Td = i_Td + par.Td_bar
@@ -135,7 +135,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                             w = par.grid_w[i_w]
 
                             # ii. next period mortgage balance
-                            d_plus = trans.d_plus_func(par.q,h,grid_d_prime[i_dp],w,Td,Tda,t,par)
+                            d_plus = trans.d_plus_func(grid_d_prime[i_dp],t,Td,Tda,par)
                         
                             # iii. initialize at zero
                             for i_a in range(par.Na):
@@ -256,7 +256,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                                             marg_u_plus = 1/inv_marg_u_buy_plus[i_a]
                                         else: 
                                             v_plus = -1/inv_v_rent_plus[i_a,int(rent_choice[i_a])]
-                                            marg_u_plus = -1/inv_marg_u_rent_plus[i_a,int(rent_choice[i_a])]
+                                            marg_u_plus = 1/inv_marg_u_rent_plus[i_a,int(rent_choice[i_a])]
                                     else:                                   
                                         discrete = np.array([inv_v_stay_plus[i_a],
                                                             inv_v_ref_plus[i_a],
@@ -274,7 +274,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                                             marg_u_plus = 1/inv_marg_u_buy_plus[i_a]
                                         else: 
                                             v_plus = -1/inv_v_rent_plus[i_a,int(rent_choice[i_a])]
-                                            marg_u_plus = -1/inv_marg_u_rent_plus[i_a,int(rent_choice[i_a])]
+                                            marg_u_plus = 1/inv_marg_u_rent_plus[i_a,int(rent_choice[i_a])]
                                     v_bar[i_a] += weight*par.beta*v_plus
                                     q[i_h,i_dp,i_Td,i_Tda,i_w,i_a] += weight*par.beta*(1+par.r)*marg_u_plus
 
@@ -304,12 +304,12 @@ def solve_stay(t,sol,par):
     c_stay = sol.c_stay[t]
     
     # c. restrict loop over terminal periods
-    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
-
+    Td_len = np.fmin(t+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
+    count = 0
     # d. loop through states
     for i_w in prange(par.Nw):
         for i_d in prange(par.Nd): 
-            for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
+            for i_Tda in range(np.fmin(par.Tda_bar,par.T-t+1)):
                 for i_Td in range(Td_len):
                     for i_h in range(par.Nh):
 
@@ -317,7 +317,7 @@ def solve_stay(t,sol,par):
                         v_stay_vec = np.zeros(par.Nm)
                         h = par.grid_h[i_h]
 
-                        for i_a in prange(par.Na):
+                        for i_a in range(par.Na):
                             # o. post decision assets
                             a = par.grid_a[i_a]
  
@@ -331,6 +331,12 @@ def solve_stay(t,sol,par):
                         negm_upperenvelope(par.grid_a,m_endo[i_h,i_d,i_Td,i_Tda,i_w,:],c_endo[i_h,i_d,i_Td,i_Tda,i_w,:],
                          inv_v_bar[i_h,i_d,i_Td,i_Tda,i_w,:],par.grid_m,c_stay[i_h,i_d,i_Td,i_Tda,i_w,:],
                          v_stay_vec,h,move,rent,t,par)
+                        
+                        count += 1
+                        #print('iteration')
+                        #print(count)
+                        #print('v_stay vec:')
+                        #print(v_stay_vec)
  
                         # iii. optimal value func and marg u - (negative) inverse 
                         for i_m in range(par.Nm): 
@@ -372,14 +378,14 @@ def solve_ref(t,sol,par):
     inv_v_stay = sol.inv_v_stay[t]
     c_stay = sol.c_stay[t]
     grid_m = par.grid_m
-    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t),1)
+    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t+1),1)
     
     nu = par.nu
     rho = par.rho
     n = par.n[t]
 
     # c. restrict loop over terminal periods
-    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape)
+    Td_len = np.fmin(t+2,par.Td_shape)
 
     # d. loop over outer states
     for i_w in prange(par.Nw):
@@ -390,7 +396,7 @@ def solve_ref(t,sol,par):
             for i_d in range(par.Nd):
                 d = grid_d[i_d]
                 for i_Td in range(Td_len):
-                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
+                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t+1)):
 
                         # i. loop over cash on hand state
                         for i_m in range(par.Nm):                        
@@ -484,14 +490,14 @@ def solve_buy(t,sol,par):
     c_stay = sol.c_stay[t]
     grid_m = par.grid_m
     grid_h = par.grid_h
-    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t),1)
+    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t+1),1)
     
     nu = par.nu
     rho = par.rho
     n = par.n[t]
     
     # c. restrict loop over terminal mortgage periods 
-    Td_len = np.fmin(t-par.Tmin+2,par.Td_shape)
+    Td_len = np.fmin(t+2,par.Td_shape)
     
     # d. loop over outer states
     for i_w in prange(par.Nw):
@@ -509,7 +515,7 @@ def solve_buy(t,sol,par):
             for i_d in range(par.Nd):
                 d = grid_d[i_d]
                 for i_Td in range(Td_len): 
-                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t)):
+                    for i_Tda in range(np.fmin(par.Tda_bar,par.T-t+1)):
 
                         # i. loop over cash on hand and house purchase
                         for i_m in range(par.Nm):                        

@@ -32,7 +32,7 @@ def m_plus_func(a,w_plus,d,Td,Tda,par,t):
     
     pmt,_,_,_ = mt.mpmt(d,t,Td,Tda,par)
 
-    m_plus = a - pmt + mt.income_aftertax(w_plus,a,d,Tda,par) 
+    m_plus = (1+par.r)*a - pmt + mt.income_aftertax(w_plus,d,Tda,par) 
     return m_plus
 
 njit(fastmath=True)
@@ -79,7 +79,7 @@ def Tda_plus_func(Tda):
     return np.fmax(0,Tda-1)
 
 @njit(fastmath=True)
-def d_plus_func(q,h,d,w,t,Td,Tda,par):
+def d_plus_func(d,t,Td,Tda,par):
     #if move or ref:
     #    d_plus = (1+par.r_m)*np.fmin(par.omega_ltv*q*h,par.omega_dti*w)
     if Tda > 0:
