@@ -199,7 +199,7 @@ class HAHModelClass(EconModelClass):
             # iv. combined
         if par.include_unemp: 
             par.Ny = par.Nxi*par.Np+1 # +1 to add unemployment outcome
-            grid_y_emp = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi) - par.pi*par.b
+            grid_y_emp = (np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)-par.pi*par.b)/(1-par.pi)
             par.grid_y = np.sort(np.append(grid_y_emp,par.b))
             
             par.y_trans = np.zeros((len(par.grid_y),len(par.grid_y)))
@@ -209,8 +209,8 @@ class HAHModelClass(EconModelClass):
             par.y_trans[:,0] = par.pi # fill leftmost col with probability par.pi
         else:
             par.Ny = par.Nxi*par.Np 
-            par.grid_y = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi) - par.pi*par.b      
-            par.y_trans = np.kron(par.xi_trans,par.p_trans)*(1-par.pi)
+            par.grid_y = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
+            par.y_trans = np.kron(par.xi_trans,par.p_trans)
         
         par.y_trans_cumsum = np.cumsum(par.y_trans,axis=1)
         #par.w_ergodic = find_ergodic(par.p_trans)
