@@ -26,7 +26,7 @@ negm_upperenvelope = upperenvelope.create(utility.func,use_inv_w=True)
 def last_period_v_bar_q(t,sol,par):
     """ 
     compute the last period post decision functions 
-    v_bar and q, both given by the bequest motive 
+    inv_v_bar and q, both given by the bequest motive 
     """
 
     # a. unpack solution arrays
@@ -75,7 +75,7 @@ def last_period_v_bar_q(t,sol,par):
 ####################
 @njit(parallel=True)
 def postdecision_compute_v_bar_q(t,sol,par):
-    """ compute the post-decision functions w and/or q """
+    """ compute the post-decision functions inv_v_bar and q """
     # unpack solution arrays
     inv_v_bar = sol.inv_v_bar[t]
     q = sol.q[t]
@@ -125,7 +125,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                     for i_Tda in range(np.fmin(par.Tda_bar,par.T-t+1)):
                         # mortgage plan and scale grid
                         Tda = i_Tda
-                        Td = i_Td + par.Td_bar
+                        Td = mt.Td_func(t,par)
 
                         d_prime_high = par.q*h
                         grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
@@ -134,7 +134,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                             # i. permanent income
                             w = par.grid_w[i_w]
 
-                            # ii. next period mortgage balance
+                            # ii. next period mortgage balance beginning of period
                             d_plus = trans.d_plus_func(grid_d_prime[i_dp],t,Td,Tda,par)
                         
                             # iii. initialize at zero
@@ -592,12 +592,10 @@ def solve_rent(t,sol,par):
     m_endo = sol.m_endo_rent[t]
     inv_v_bar = sol.inv_v_bar[t]
     q_rent = sol.q[t]
-    #inv_v_bar_rent = sol.inv_v_bar_rent[t]
 
     # unpack solution arrays
     inv_v_rent = sol.inv_v_rent[t]
     inv_marg_u_rent = sol.inv_marg_u_rent[t]
-    #htilde = sol.htilde[t]
     c_rent = sol.c_rent[t]
     
     for i_w in prange(par.Nw):

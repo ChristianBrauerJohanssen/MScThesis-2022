@@ -1,7 +1,7 @@
 """ HAHModel
 
 Solves a Heterogeneous Agent Housing Market (HAH) model building on the EconModel and 
-consav packages as well as the NVFI and NEGM algorithms proposed by Jeppe Druedahl.
+consav packages as well as the NEGM algorithm proposed by Jeppe Druedahl.
 
 Developer: Christian Brauer Johanssen
 Create date: 2022-10-05
@@ -74,11 +74,6 @@ class HAHModelClass(EconModelClass):
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
         par.chi = np.ones(par.T)                        # placeholder for deterministic income process
-        #par.G = 1.02                                    # growth in permanent income
-        #par.L = np.ones(par.T)                          # income profile placeholder
-        #par.L[0:par.Tr] = np.linspace(1,1/par.G,par.Tr) # hump shaped permanet income while working
-        #par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
-        #par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
         par.n = np.ones(par.T)                          # placeholder for equivalence scale 
 
         # c. income process
@@ -90,7 +85,8 @@ class HAHModelClass(EconModelClass):
         par.Nxi = 1                                     # quadrature nodes for transitory shock
 
         par.pi = 0.025                                  # unemployment probability
-        par.b = 0.2                                     # unemployment benefits 
+        par.b = 0.2                                     # unemployment benefits
+        par.Nu = 2                                      # employed or unemployed 
 
         # d. interest rates and financial regulation
         par.r = 0.01                                    # return on liquid assets
@@ -104,7 +100,6 @@ class HAHModelClass(EconModelClass):
         par.Td_shape = 27                               # sample space for mortgage terminal periods
         par.Tda_bar = 11                                # maximum terms with deferred amortisation +1
         
-
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
         par.gamma = 0.008                               # per rental unit operating cost
@@ -130,22 +125,18 @@ class HAHModelClass(EconModelClass):
         par.Nh = 6                                      # number of points in owner occupied housing grid
         par.h_min = 1.42                                # minimum owner occupied houze size 
         par.h_max = 5.91                                # maximum owner occupied house size
-
         par.Nhtilde = 3                                 # number of points in rental house size grid
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
-
         par.Nd = 10                                     # number of points in mortgage balance grid
-        
         par.Nm = 10                                     # number of points in cash on hand grid
         par.m_max = 15.0                                # maximum cash-on-hand level  
-    
-        par.Na = 10                                    # number of points in assets grid
+        par.Na = 10                                     # number of points in assets grid
         par.a_max = par.m_max+1.0                       # maximum assets
 
         # i. simulation
         par.sigma_p0 = 0.2                              # standard dev. of initial permanent income
-        par.mu_d0 = 0.8                                 # mean initial housing level 
+        #par.mu_d0 = 0.8                                 # mean initial housing level 
         
         par.sigma_d0 = 0.2                              # standard dev. of initial housing level
         par.mu_a0 = 0.2                                 # mean initial assets
@@ -163,6 +154,7 @@ class HAHModelClass(EconModelClass):
         par.do_print_period = False                     # whether to print solution progress every period
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
         par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
+        par.include_unemp = True                        # add unemployment to income process
 
     def allocate(self):
         """ allocate model """
@@ -186,12 +178,12 @@ class HAHModelClass(EconModelClass):
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)
         
-        # c. shocks
+        # c. shocks and income process
             # i. persistent shock/permanent income states
         _out = log_rouwenhorst(par.rho_p,par.sigma_psi,par.Np)
         par.p_grid,par.p_trans,par.p_ergodic,par.p_trans_cumsum,par.p_ergodic_cumsum = _out
         
-            # ii. transitory 
+            # ii. transitory income shock
         if par.sigma_xi > 0 and par.Nxi > 1:
             par.xi_grid,par.xi_weights = log_normal_gauss_hermite(par.sigma_xi,par.Nxi)
             par.xi_trans = np.broadcast_to(par.xi_weights,(par.Nxi,par.Nxi))
@@ -200,18 +192,32 @@ class HAHModelClass(EconModelClass):
             par.xi_weights = np.ones(1)
             par.xi_trans = np.ones((1,1))
 
-            # iii. combined
-        par.Nw = par.Nxi*par.Np
-        par.grid_w = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
-        par.w_trans = np.kron(par.xi_trans,par.p_trans)
-        par.w_trans_cumsum = np.cumsum(par.p_trans,axis=1)
-        par.w_ergodic = find_ergodic(par.p_trans)
-        par.w_ergodic_cumsum = np.cumsum(par.p_ergodic)
-        par.w_trans_T = par.p_trans.T
+            # iii. unemployment
+        par.u_grid = np.array([0,1],dtype='int') 
+        par.u_weight = (1-par.pi,par.pi)
 
-            # iv. unemployment
+            # iv. combined
+        if par.include_unemp: 
+            par.Ny = par.Nxi*par.Np+1 # +1 to add unemployment outcome
+            grid_y_emp = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi) - par.pi*par.b
+            par.grid_y = np.sort(np.append(grid_y_emp,par.b))
+            
+            par.y_trans = np.zeros((len(par.grid_y),len(par.grid_y)))
+            y_trans_inner = np.kron(par.xi_trans,par.p_trans)*(1-par.pi)
+            par.y_trans[1:len(par.grid_y),1:len(par.grid_y)] = y_trans_inner
+            par.y_trans[0,:] = par.pi # fill top row with probability par.pi
+            par.y_trans[:,0] = par.pi # fill leftmost col with probability par.pi
+        else:
+            par.Ny = par.Nxi*par.Np 
+            par.grid_y = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi) - par.pi*par.b      
+            par.y_trans = np.kron(par.xi_trans,par.p_trans)*(1-par.pi)
         
-            # v. house price
+        par.y_trans_cumsum = np.cumsum(par.y_trans,axis=1)
+        #par.w_ergodic = find_ergodic(par.p_trans)
+        #par.w_ergodic_cumsum = np.cumsum(par.p_ergodic)
+        par.y_trans_T = par.y_trans.T
+        
+            # v. house price shock if selling
 
         # d. set seed
         np.random.seed(par.sim_seed)
@@ -241,15 +247,15 @@ class HAHModelClass(EconModelClass):
         fastpar = dict()
         #fastpar['do_print'] = False
         fastpar['do_print_period'] = False
-        fastpar['T'] = 3
+        fastpar['T'] = 4
         fastpar['Td_shape'] = 3
         fastpar['Td_bar'] = 2
-        fastpar['Tda_bar'] = 1
+        fastpar['Tda_bar'] = 2
         fastpar['Np'] = 3
         fastpar['Nxi'] = 1
         fastpar['Nh'] = 6
         fastpar['Nhtilde'] = 3 
-        fastpar['Nd'] = 2
+        fastpar['Nd'] = 3
         fastpar['Nm'] = 3
         fastpar['Na'] = 3
         fastpar['simN'] = 2
@@ -261,12 +267,12 @@ class HAHModelClass(EconModelClass):
             fastpar[key] = prev
 
         self.allocate()
-
+        
         # c. solve
         self.solve(do_assert=False)
 
         # d. simulate
-        self.simulate()
+        #self.simulate()
 
         # e. reiterate
         for key,val in fastpar.items():
@@ -285,10 +291,10 @@ class HAHModelClass(EconModelClass):
         sol = self.sol
 
         # a. shapes
-        own_shape = (par.T,par.Nh,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
-        buy_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
-        rent_shape = (par.T,par.Nhtilde,par.Nw,par.Nm)
-        post_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Na)
+        own_shape = (par.T,par.Nh,par.Nd,par.Td_shape,par.Tda_bar,par.Ny,par.Nm)
+        buy_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Ny,par.Nm)
+        rent_shape = (par.T,par.Nhtilde,par.Ny,par.Nm)
+        post_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Ny,par.Na)
 
         # b. stay        
         sol.c_stay = np.zeros(own_shape)
@@ -298,7 +304,7 @@ class HAHModelClass(EconModelClass):
         # c. refinance
         sol.c_ref = np.zeros(own_shape)
         sol.d_prime_ref = np.zeros(own_shape)
-        sol.Tda_prime_ref = np.zeros(own_shape)     # distinguish between beg and end Tda?
+        sol.Tda_prime_ref = np.zeros(own_shape)
         sol.inv_v_ref = np.zeros(own_shape)
         sol.inv_marg_u_ref = np.zeros(own_shape)
 
@@ -322,9 +328,8 @@ class HAHModelClass(EconModelClass):
 
         sol.c_endo_stay = np.nan*np.zeros(post_shape)
         sol.m_endo_stay = np.nan*np.zeros(post_shape)
-        sol.c_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na)) 
-        sol.m_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na))
-
+        sol.c_endo_rent = np.nan*np.zeros(rent_shape) 
+        sol.m_endo_rent = np.nan*np.zeros(rent_shape)
 
     def solve(self,do_assert=True):
         """ solve the model using NEGM and NVFI
@@ -464,14 +469,14 @@ class HAHModelClass(EconModelClass):
         par = self.par
         sim = self.sim
 
-        # a. initial and final
-        sim.p0 = np.zeros(par.simN)
-        sim.d0 = np.zeros(par.simN)
+        # a. initial values
+        sim.p0 = np.zeros(par.simN)        
         sim.a0 = np.zeros(par.simN)
 
+        # b. total discounted utility
         sim.utility = np.zeros(par.simN)
 
-        # b. states and choices
+        # c. states and choices
         sim_shape = (par.T,par.simN)
         sim.h = np.zeros(sim_shape)
         sim.d = np.zeros(sim_shape)
@@ -481,14 +486,13 @@ class HAHModelClass(EconModelClass):
         sim.y = np.zeros(sim_shape)
         sim.m = np.zeros(sim_shape)
 
+        sim.h_prime = np.zeros(sim_shape)
         sim.d_prime = np.zeros(sim_shape)
+        sim.Td_prime = np.zeros(sim_shape)
         sim.Tda_prime = np.zeros(sim_shape)
         sim.discrete = np.zeros(sim_shape,dtype=np.int)  
         sim.c = np.zeros(sim_shape)
         sim.a = np.zeros(sim_shape)
-        
-        #sim.c_bump = np.zeros(sim_shape)
-        #sim.mpc = np.zeros(sim_shape)
         
         # c. euler
         euler_shape = (par.T-1,par.simN)
@@ -502,23 +506,24 @@ class HAHModelClass(EconModelClass):
         sim.u = np.zeros(sim_shape)
         #sim.z = np.zeros(par.T)    # economy wide shock
 
-    def simulate(self,do_utility=False,do_euler_error=False):  #,seed=1998):
+    def simulate(self,do_utility=False,do_euler_error=False):
       """ simulate the model """
       par = self.par
       sol = self.sol
       sim = self.sim
       tic = time.time()
 
-      # a. random shocks
+      # a. random shock
       sim.p0[:] = np.random.lognormal(mean=-0.2,sigma=par.sigma_p0,size=par.simN)
-      sim.d0[:] = par.mu_d0*np.random.lognormal(mean=-0.2,sigma=par.sigma_d0,size=par.simN)
       sim.a0[:] = par.mu_a0*np.random.lognormal(mean=-0.2,sigma=par.sigma_a0,size=par.simN)
+      
       I = np.random.choice(par.Nshocks,
           size=(par.T,par.simN), 
           p=par.psi_w*par.xi_w*par.z_w)
       sim.psi[:,:] = par.psi[I]
       sim.xi[:,:] = par.xi[I]
-      sim.z[:] = par.z[I[:,0]]
+      sim.u[:,:] = par.u
+      #sim.z[:] = par.z[I[:,0]]
       
       # b. call
       with jit(self) as model:
