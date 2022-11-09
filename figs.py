@@ -7,7 +7,7 @@ sns.set_style("whitegrid")
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 colors = prop_cycle.by_key()["color"]
 
-from consav.grids import nonlinspace
+from consav.grids import equilogspace
 from consav import linear_interp
 
 
@@ -30,7 +30,9 @@ def lifecycle(model,quantiles:bool=False):
 
     simvarlist = [('p','$p_t$'),
                   ('y','$y_t$'),
-                  ('n','$n_t$'),
+                  ('h','$h_t$'),
+                  ('d','$d_t$'),
+                  ('d_prime','$d^{\prime}_t$'),
                   ('m','$m_t$'),
                   ('c','$c_t$'),
                   ('a','$a_t$'),
@@ -61,11 +63,11 @@ def lifecycle(model,quantiles:bool=False):
 
         else:
             ax.plot(age,np.mean(simdata,axis=1),lw=2)
-            if simvar not in ['discrete','mpc']:
-                ax.plot(age,np.percentile(simdata,25,axis=1),
-                    ls='--',lw=1,color='black')
-                ax.plot(age,np.percentile(simdata,75,axis=1),
-                    ls='--',lw=1,color='black')
+            #if simvar not in ['discrete','mpc']:
+            #    ax.plot(age,np.percentile(simdata,25,axis=1),
+            #        ls='--',lw=1,color='black')
+            #    ax.plot(age,np.percentile(simdata,75,axis=1),
+            #        ls='--',lw=1,color='black')
         ax.set_title(simvarlatex)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
@@ -76,7 +78,7 @@ def lifecycle(model,quantiles:bool=False):
         if i in [len(simvarlist)-i-1 for i in range(cols)]:
             ax.set_xlabel('age')
     plt.tight_layout()
-    plt.savefig('output/life_cycle_twoasset.png')
+    #plt.savefig('output/life_cycle_baseline.png')
     plt.show()
 
 def mpc_over_cash_on_hand(model):
@@ -88,7 +90,7 @@ def mpc_over_cash_on_hand(model):
     c1 = np.zeros(shape=(model.par.T, len(model.par.grid_m)))
     mpc = np.zeros(shape=(model.par.T, len(model.par.grid_m)))
 
-    m_grid =  nonlinspace(0,model.par.m_max,model.par.Nm,1.1) 
+    m_grid =  equilogspace(0,model.par.m_max,model.par.Nm,1.1) 
 
     for t in range(model.par.T):
         t = int(t)    

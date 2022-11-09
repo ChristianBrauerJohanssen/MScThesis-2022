@@ -44,7 +44,7 @@ class HAHModelClass(EconModelClass):
         """ fundamental settings """
 
         # a. namespaces 
-        self.namespaces = ['par','sim','sol'] 
+        self.namespaces = ['par','sim','sol','ss'] 
         
         # b. other attributes
         self.other_attrs = []
@@ -74,11 +74,6 @@ class HAHModelClass(EconModelClass):
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
         par.chi = np.ones(par.T)                        # placeholder for deterministic income process
-        #par.G = 1.02                                    # growth in permanent income
-        #par.L = np.ones(par.T)                          # income profile placeholder
-        #par.L[0:par.Tr] = np.linspace(1,1/par.G,par.Tr) # hump shaped permanet income while working
-        #par.L[par.Tr-1] = 0.67                          # drop in permanent income at retirement age
-        #par.L[par.Tr-1:] = par.L[par.Tr-1:]/par.G       # constant permanent income after retirement
         par.n = np.ones(par.T)                          # placeholder for equivalence scale 
 
         # c. income process
@@ -99,12 +94,11 @@ class HAHModelClass(EconModelClass):
         par.omega_ltv = 0.8                             # loan-to-value ratio  
         par.omega_dti = 5                               # debt-to-income ratio
         par.Cp_ref = 0.05                               # proportional refinancing cost
-        par.Cf_ref = 2                                  # fixed refinancing cost NB: dummy value
+        par.Cf_ref = 8250/par.median_income             # fixed refinancing cost NB: dummy value
         par.Td_bar = 30                                 # maximum regulatory mortgage term length
         par.Td_shape = 27                               # sample space for mortgage terminal periods
         par.Tda_bar = 11                                # maximum terms with deferred amortisation +1
         
-
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
         par.gamma = 0.008                               # per rental unit operating cost
@@ -122,40 +116,29 @@ class HAHModelClass(EconModelClass):
         par.qh_bar = 3_040_000/par.median_income        # top-bracket property tax threshold
         par.rd_bar = 75_000/par.median_income           # high tax value of interest deduction threshold
 
-        # l. price guesses for stationary equilibrium
+        # g. price guesses for stationary equilibrium
         par.q = 1.0                                                     # house price guess
         par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
 
-        # g. grids
-        par.Nh = 6                                      # number of points in owner occupied housing grid
+        # h. grids
+        par.Nh = 6                                      # points in owner occupied housing grid
         par.h_min = 1.42                                # minimum owner occupied houze size 
         par.h_max = 5.91                                # maximum owner occupied house size
-
-        par.Nhtilde = 3                                 # number of points in rental house size grid
+        par.Nhtilde = 3                                 # points in rental house size grid
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
-
-        par.Nd = 10                                     # number of points in mortgage balance grid
-        par.d_max = par.q*par.h_max                     # placeholder maximum mortgage size
-
-        #par.Nd_prime = 10                               # number of points in mortgage balance grid post
-        #par.d_prime_max =par.q*par.h_max                # placeholder maximum mortgage size post decision
-        
-        par.Nm = 10                                     # number of points in cash on hand grid
-        par.m_max = 15.0                                # maximum cash-on-hand level  
-    
-        par.Na = 10                                    # number of points in assets grid
+        par.Nd = 10                                     # points in mortgage balance grid
+        par.Nm = 10                                     # points in cash on hand grid
+        par.Nx = 15                                     # points in gross resources grid
+        par.Na = 10                                     # points in assets grid
+        par.m_max = 15.0                                # maximum cash-on-hand
+        par.x_max = 15.0                                # maximum gross resources
         par.a_max = par.m_max+1.0                       # maximum assets
 
-        ## h. simulation
-        #par.sigma_p0 = 0.2                              # standard dev. of initial permanent income
-        #par.mu_d0 = 0.8                                 # mean initial housing level 
-        #
-        #par.sigma_d0 = 0.2                              # standard dev. of initial housing level
-        #par.mu_a0 = 0.2                                 # mean initial assets
-        #
-        #par.sigma_a0 = 0.1                              # standard dev. of initial assets
-        #
+        # i. simulation
+        par.mu_a0 = 0.2                                 # mean initial assets
+        par.sigma_a0 = 0.1                              # standard dev. of initial assets
+        
         par.simN = 10_000                               # number of simulated agents
         par.sim_seed = 1995                             # seed for random number generator
         par.euler_cutoff = 0.02                         # euler error cutoff
@@ -165,9 +148,9 @@ class HAHModelClass(EconModelClass):
         par.tol = 1e-12                                 # solution precision tolerance
         par.do_print = False                            # whether to print solution progress
         par.do_print_period = False                     # whether to print solution progress every period
-        #par.do_marg_u = True                           # calculate marginal utility for use in egm
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
         par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
+        par.include_unemp = True
 
     def allocate(self):
         """ allocate model """
@@ -186,17 +169,18 @@ class HAHModelClass(EconModelClass):
         # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
         par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
+        par.grid_x = equilogspace(-5,par.x_max,par.Nx)
         par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double') # strictly speaking, htilde is not a state
         
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)
         
-        # c. shocks
+        # c. shocks and income process
             # i. persistent shock/permanent income states
         _out = log_rouwenhorst(par.rho_p,par.sigma_psi,par.Np)
         par.p_grid,par.p_trans,par.p_ergodic,par.p_trans_cumsum,par.p_ergodic_cumsum = _out
         
-            # ii. transitory 
+            # ii. transitory income shock
         if par.sigma_xi > 0 and par.Nxi > 1:
             par.xi_grid,par.xi_weights = log_normal_gauss_hermite(par.sigma_xi,par.Nxi)
             par.xi_trans = np.broadcast_to(par.xi_weights,(par.Nxi,par.Nxi))
@@ -205,14 +189,27 @@ class HAHModelClass(EconModelClass):
             par.xi_weights = np.ones(1)
             par.xi_trans = np.ones((1,1))
 
-            # iii. combined
-        par.Nw = par.Nxi*par.Np
-        par.grid_w = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
-        par.w_trans = np.kron(par.xi_trans,par.p_trans)
-        par.w_trans_cumsum = np.cumsum(par.p_trans,axis=1)
-        par.w_ergodic = find_ergodic(par.p_trans)
-        par.w_ergodic_cumsum = np.cumsum(par.p_ergodic)
-        par.w_trans_T = par.p_trans.T
+            # iii. combine and add unemployment
+        if par.include_unemp: 
+            par.Nw = par.Nxi*par.Np+1 # +1 to add unemployment outcome
+            grid_w_emp = (np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)-par.pi*par.b)/(1-par.pi)
+            par.grid_w = np.sort(np.append(grid_w_emp,par.b))
+            
+            par.w_trans = np.zeros((len(par.grid_w),len(par.grid_w)))
+            w_trans_inner = np.kron(par.xi_trans,par.p_trans)*(1-par.pi)
+            par.w_trans[1:len(par.grid_w),1:len(par.grid_w)] = w_trans_inner
+            par.w_trans[0,:] = par.pi # fill top row with probability par.pi
+            par.w_trans[:,0] = par.pi # fill leftmost col with probability par.pi
+        else:
+            par.Nw = par.Nxi*par.Np 
+            par.grid_w = np.repeat(par.xi_grid,par.Np)*np.tile(par.p_grid,par.Nxi)
+            par.w_trans = np.kron(par.xi_trans,par.p_trans)
+        
+        par.w_trans_cumsum = np.cumsum(par.w_trans,axis=1)
+        par.w_ergodic = find_ergodic(par.w_trans)
+        par.w_ergodic_cumsum = np.cumsum(par.w_ergodic)
+        par.w_trans_T = par.w_trans.T
+
 
         # d. set seed
         np.random.seed(par.sim_seed)
@@ -240,20 +237,21 @@ class HAHModelClass(EconModelClass):
 
         # a. define points in coarse grids
         fastpar = dict()
-        #fastpar['do_print'] = False
-        fastpar['do_print_period'] = False
-        fastpar['T'] = 3
+        fastpar['do_print'] = False
+        fastpar['do_print_period'] = True
+        fastpar['T'] = 4
         fastpar['Td_shape'] = 3
         fastpar['Td_bar'] = 2
-        fastpar['Tda_bar'] = 1
+        fastpar['Tda_bar'] = 2
         fastpar['Np'] = 3
         fastpar['Nxi'] = 1
         fastpar['Nh'] = 6
         fastpar['Nhtilde'] = 3 
-        fastpar['Nd'] = 2
+        fastpar['Nd'] = 3
         fastpar['Nm'] = 3
+        fastpar['Nx'] = 3
         fastpar['Na'] = 3
-        #fastpar['simN'] = 2 # add when simulation module is done
+        fastpar['simN'] = 2 # add when simulation module is done
 
         # b. apply
         for key,val in fastpar.items():
@@ -267,7 +265,7 @@ class HAHModelClass(EconModelClass):
         self.solve(do_assert=False)
 
         # d. simulate
-        #self.simulate()
+        self.simulate()
 
         # e. reiterate
         for key,val in fastpar.items():
@@ -291,6 +289,9 @@ class HAHModelClass(EconModelClass):
         rent_shape = (par.T,par.Nhtilde,par.Nw,par.Nm)
         post_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Na)
 
+        buy_shape_fast = (par.T,par.Nw,par.Nx)
+        ref_shape_fast = (par.T,par.Nh,par.Nw,par.Nx)  
+
         # b. stay        
         sol.c_stay = np.zeros(own_shape)
         sol.inv_v_stay = np.zeros(own_shape)
@@ -299,9 +300,15 @@ class HAHModelClass(EconModelClass):
         # c. refinance
         sol.c_ref = np.zeros(own_shape)
         sol.d_prime_ref = np.zeros(own_shape)
-        sol.Tda_prime_ref = np.zeros(own_shape)     # distinguish between beg and end Tda?
+        sol.Tda_prime_ref = np.zeros(own_shape)   
         sol.inv_v_ref = np.zeros(own_shape)
         sol.inv_marg_u_ref = np.zeros(own_shape)
+
+        sol.c_ref_fast = np.zeros(ref_shape_fast)
+        sol.d_prime_ref_fast = np.zeros(ref_shape_fast)
+        sol.Tda_prime_ref_fast = np.zeros(ref_shape_fast)   
+        sol.inv_v_ref_fast = np.zeros(ref_shape_fast)
+        sol.inv_marg_u_ref_fast = np.zeros(ref_shape_fast)
 
         # d. buy
         sol.c_buy = np.zeros(buy_shape)
@@ -310,6 +317,13 @@ class HAHModelClass(EconModelClass):
         sol.Tda_prime_buy = np.zeros(buy_shape)
         sol.inv_v_buy = np.zeros(buy_shape)
         sol.inv_marg_u_buy = np.zeros(buy_shape)
+
+        sol.c_buy_fast = np.zeros(buy_shape_fast)
+        sol.h_buy_fast = np.zeros(buy_shape_fast)
+        sol.d_prime_buy_fast = np.zeros(buy_shape_fast)
+        sol.Tda_prime_buy_fast = np.zeros(buy_shape_fast)
+        sol.inv_v_buy_fast = np.zeros(buy_shape_fast)
+        sol.inv_marg_u_buy_fast = np.zeros(buy_shape_fast)
 
         # e. rent
         sol.c_rent = np.zeros(rent_shape)
@@ -360,10 +374,10 @@ class HAHModelClass(EconModelClass):
                         print(f' last period bequest computed in {toc_w-tic_w:.1f} secs')
 
                     if do_assert: 
-                        assert np.all((sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                      (np.isnan(sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                        assert np.all((sol.q[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                      (np.isnan(sol.q[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        assert np.all((sol.inv_v_bar[t,:,:,0:Td_len,0:Tda_len,:,:] > 0) & 
+                                      (np.isnan(sol.inv_v_bar[t,:,:,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        assert np.all((sol.q[t,:,:,0:Td_len,0:Tda_len,:,:] > 0) & 
+                                      (np.isnan(sol.q[t,:,:,0:Td_len,0:Tda_len,:,:]) == False)), t
 
                 else: 
                     tic_w = time.time()
@@ -374,16 +388,12 @@ class HAHModelClass(EconModelClass):
                         print(f' v_bar and q computed in {toc_w-tic_w:.1f} secs')
                     
                     if do_assert: 
-                        assert np.all((sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                      (np.isnan(sol.inv_v_bar[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                        assert np.all((sol.q[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                      (np.isnan(sol.q[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        assert np.all((sol.inv_v_bar[t,:,:,0:Td_len,0:Tda_len,:,:] > 0) & 
+                                      (np.isnan(sol.inv_v_bar[t,:,:,0:Td_len,0:Tda_len,:,:]) == False)), t
+                        assert np.all((sol.q[t,:,:,0:Td_len,0:Tda_len,:,:] > 0) & 
+                                      (np.isnan(sol.q[t,:,:,0:Td_len,0:Tda_len,:,:]) == False)), t
                         
-                        #assert np.all((sol.htilde[t] >= 0) & (np.isnan(sol.htilde[t]) == False))
-                        #assert np.all((sol.h_buy[t] >= 0) & (np.isnan(sol.h_buy[t] == False)))
-                
-                # b. all other periods
-                    # ii. solve and time stayer problem
+                # b. solve and time stayer problem
                 tic_stay = time.time()
                 hhp.solve_stay(t,sol,par)
                 toc_stay = time.time()
@@ -392,43 +402,37 @@ class HAHModelClass(EconModelClass):
                 if par.do_print:
                     print(f' solved stayer problem in {toc_stay-tic_stay:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_stay[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.c_stay[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                    assert np.all((sol.inv_v_stay[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.inv_v_stay[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.c_stay[t,:,:,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.c_stay[t,:,:,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.inv_v_stay[t,:,:,0:Td_len,0:Tda_len,:,:] >= 0) & 
+                                  (np.isnan(sol.inv_v_stay[t,:,:,0:Td_len,0:Tda_len,:,:]) == False)), t
                 
-                # iii. solve and time refinance problem
+                # c. solve and time refinance problem
                 tic_ref = time.time()
-                hhp.solve_ref(t,sol,par)                  
+                hhp.solve_ref_fast(t,sol,par)                  
                 toc_ref = time.time()
                 par.time_ref[t] = toc_ref-tic_ref
                 
                 if par.do_print:
                     print(f' solved refinance problem in {toc_ref-tic_ref:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_ref[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.c_ref[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                    assert np.all((sol.d_prime_ref[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.d_prime_ref[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                    assert np.all((sol.inv_v_ref[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.inv_v_ref[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.c_ref_fast[t] >= 0) & (np.isnan(sol.c_ref_fast[t]) == False)), t
+                    assert np.all((sol.d_prime_ref_fast[t] >= 0) & (np.isnan(sol.d_prime_ref_fast[t]) == False)), t
+                    assert np.all((sol.inv_v_ref_fast[t] >= 0) & (np.isnan(sol.inv_v_ref_fast[t]) == False)), t
                 
-                # iv. solve and time buyer problem
+                # d. solve and time buyer problem
                 tic_buy = time.time()
-                hhp.solve_buy(t,sol,par)                  
+                hhp.solve_buy_fast(t,sol,par)                  
                 toc_buy = time.time()
                 par.time_buy[t] = toc_buy-tic_buy
                 if par.do_print:
                     print(f' solved buyer problem in {toc_buy-tic_buy:.1f} secs')
                 if do_assert:
-                    assert np.all((sol.c_buy[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.c_buy[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                    assert np.all((sol.d_prime_buy[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) &
-                                  (np.isnan(sol.d_prime_buy[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
-                    assert np.all((sol.inv_v_buy[t,0,0,0:Td_len,0:Tda_len,:,:] >= 0) & 
-                                  (np.isnan(sol.inv_v_buy[t,0,0,0:Td_len,0:Tda_len,:,:]) == False)), t
+                    assert np.all((sol.c_buy_fast[t] >= 0) & (np.isnan(sol.c_buy_fast[t]) == False)), t
+                    assert np.all((sol.d_prime_buy_fast[t] >= 0) &(np.isnan(sol.d_prime_buy_fast[t]) == False)), t
+                    assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
                 
-                # v. solve and time renter problem
+                # e. solve and time renter problem
                 tic_rent = time.time()
                 hhp.solve_rent(t,sol,par)                  
                 toc_rent = time.time()
@@ -440,20 +444,20 @@ class HAHModelClass(EconModelClass):
                     assert np.all((sol.c_rent[t] >= 0) & (np.isnan(sol.c_rent[t]) == False))
                     assert np.all((sol.inv_v_rent[t] >= 0) & (np.isnan(sol.inv_v_rent[t]) == False))
                 
-                # c. print
+                # f. print
                 toc = time.time()
                 total_solve_time += toc-tic
                 if par.do_print or par.do_print_period:
                     print(f' t = {t} solved in {toc-tic:.1f} secs')
         
         # print total timings
-        if par.do_print:
+        if par.do_print or par.do_print_period:
             print(f' total precomputation time  = {par.time_vbarq.sum():.1f} secs')
             print(f' total stay-time  = {par.time_stay.sum():.1f} secs')
             print(f' total ref-time   = {par.time_ref.sum():.1f} secs')
             print(f' total buy-time   = {par.time_buy.sum():.1f} secs')
             print(f' total rent-time   = {par.time_rent.sum():.1f} secs')
-            print(f' full model solved in = {total_solve_time} secs')
+            print(f' full model solved in = {total_solve_time:.1f} secs')
 
     ################
     #   simulate   #
@@ -465,103 +469,99 @@ class HAHModelClass(EconModelClass):
         par = self.par
         sim = self.sim
 
-    #  # a. initial and final
-    #  sim.p0 = np.zeros(par.simN)
-    #  sim.d0 = np.zeros(par.simN)
-    #  sim.a0 = np.zeros(par.simN)
+    
+        par = self.par
+        sim = self.sim
 
-    #  sim.utility = np.zeros(par.simN)
+        # a. initial wealth       
+        sim.a0 = np.zeros(par.simN)
 
-    #  # b. states and choices
-    #  sim_shape = (par.T,par.simN)
-    #  sim.p = np.zeros(sim_shape)
-    #  sim.y = np.zeros(sim_shape)
-    #  sim.m = np.zeros(sim_shape)
+        # b. total discounted utility
+        sim.utility = np.zeros(par.simN)
 
-    #  sim.n = np.zeros(sim_shape)
-    #  sim.discrete = np.zeros(sim_shape,dtype=np.int)
+        # c. states and choices
+        sim_shape = (par.T,par.simN)
+        sim.h = np.zeros(sim_shape)
+        sim.d = np.zeros(sim_shape)
+        sim.Td = np.zeros(sim_shape)
+        sim.Tda = np.zeros(sim_shape)
+        sim.p = np.zeros(sim_shape)
+        sim.y = np.zeros(sim_shape)
+        sim.m = np.zeros(sim_shape)
 
-    #  sim.d = np.zeros(sim_shape)
-    #  sim.c = np.zeros(sim_shape)
-    #  sim.c_bump = np.zeros(sim_shape)
-    #  sim.a = np.zeros(sim_shape)
-    #  sim.mpc = np.zeros(sim_shape)
-    #  
-    #  # c. euler
-    #  euler_shape = (par.T-1,par.simN)
-    #  sim.euler_error = np.zeros(euler_shape)
-    #  sim.euler_error_c = np.zeros(euler_shape)
-    #  sim.euler_error_rel = np.zeros(euler_shape)
+        #sim.h_prime = np.zeros(sim_shape)
+        sim.h_prime = np.zeros(sim_shape)
+        sim.d_prime = np.zeros(sim_shape)
+        sim.Td_prime = np.zeros(sim_shape)
+        sim.Tda_prime = np.zeros(sim_shape)
+        sim.discrete = np.zeros(sim_shape,dtype=np.int)  
+        sim.c = np.zeros(sim_shape)
+        sim.a = np.zeros(sim_shape)
+        
+        # c. euler
+        euler_shape = (par.T-1,par.simN)
+        sim.euler_error = np.zeros(euler_shape)
+        sim.euler_error_c = np.zeros(euler_shape)
+        sim.euler_error_rel = np.zeros(euler_shape)  
+        
+        # d. shocks
+        sim.p_y_ini = np.zeros(par.simN)
+        sim.p_ini = np.zeros(par.simN)
+        sim.p_y = np.zeros(sim_shape)
+        sim.psi = np.zeros(sim_shape) 
+        sim.i_y = np.zeros(sim_shape,dtype=np.int_)
+        #sim.xi = np.zeros(sim_shape)
+        #sim.z = np.zeros(par.T)    # economy wide shock
 
-    #  # d. shocks
-    #  sim.psi = np.zeros((par.T,par.simN))
-    #  sim.xi = np.zeros((par.T,par.simN))
-    #  sim.z = np.zeros(par.T)    # economy wide shock
+    def simulate(self,do_utility=False,do_euler_error=False):
+        """ simulate the model """
+        par = self.par
+        sol = self.sol
+        sim = self.sim
+        tic = time.time()
 
-    #def simulate(self,do_utility=False,do_euler_error=False):  #,seed=1998):
-    #  """ simulate the model """
+        # a. random shock to income and initial wealth draw
+        sim_shape = (par.T,par.simN)
+        sim.p_y_ini[:] = np.random.uniform(size=par.simN)
+        sim.p_y[:,:] = np.random.uniform(size=(sim_shape))
+        sim.a0[:] = par.mu_a0*np.random.lognormal(mean=-0.2,sigma=par.sigma_a0,size=par.simN)
+        
+        # b. call
+        with jit(self) as model:
+            par = model.par
+            sol = model.sol
+            sim = model.sim
+            simulate.lifecycle(sim,sol,par)
+        toc = time.time()
+      
+        if par.do_print or par.do_print_period:
+            print(f'model simulated in {toc-tic:.1f} secs')
+        
+        # d. euler errors
+        def norm_euler_errors(model):
+            return np.log10(abs(model.sim.euler_error/model.sim.euler_error_c)+1e-8)
+        tic = time.time()        
+        if do_euler_error:
+            with jit(self) as model:
+                par = model.par
+                sol = model.sol
+                sim = model.sim
+                simulate.euler_errors(sim,sol,par)
 
-    #  par = self.par
-    #  sol = self.sol
-    #  sim = self.sim
-
-    #  tic = time.time()
-
-    #  # a. random shocks
-    #  sim.p0[:] = np.random.lognormal(mean=-0.2,sigma=par.sigma_p0,size=par.simN)
-    #  sim.d0[:] = par.mu_d0*np.random.lognormal(mean=-0.2,sigma=par.sigma_d0,size=par.simN)
-    #  sim.a0[:] = par.mu_a0*np.random.lognormal(mean=-0.2,sigma=par.sigma_a0,size=par.simN)
-
-    #  I = np.random.choice(par.Nshocks,
-    #      size=(par.T,par.simN), 
-    #      p=par.psi_w*par.xi_w*par.z_w)
-    #  sim.psi[:,:] = par.psi[I]
-    #  sim.xi[:,:] = par.xi[I]
-    #  sim.z[:] = par.z[I[:,0]]
-
-    #  # b. call
-    #  with jit(self) as model:
-
-    #      par = model.par
-    #      sol = model.sol
-    #      sim = model.sim
-
-    #      simulate.lifecycle(sim,sol,par)
-
-    #  toc = time.time()
-    #  
-    #  if par.do_print:
-    #      print(f'model simulated in {toc-tic:.1f} secs')
-
-    #  # d. euler errors
-    #  def norm_euler_errors(model):
-    #      return np.log10(abs(model.sim.euler_error/model.sim.euler_error_c)+1e-8)
-
-    #  tic = time.time()        
-    #  if do_euler_error:
-
-    #      with jit(self) as model:
-
-    #          par = model.par
-    #          sol = model.sol
-    #          sim = model.sim
-
-    #          simulate.euler_errors(sim,sol,par)
-    #      
-    #      sim.euler_error_rel[:] = norm_euler_errors(self)
-    #  
-    #  toc = time.time()
-    #  if par.do_print:
-    #      print(f'euler errors calculated in {toc-tic:.1f} secs')
-
-    #  # e. utility
-    #  tic = time.time()        
-    #  if do_utility:
-    #      simulate.calc_utility(sim,sol,par)
-    #  
-    #  toc = time.time()
-    #  if par.do_print:
-    #      print(f'utility calculated in {toc-tic:.1f} secs')
+            sim.euler_error_rel[:] = norm_euler_errors(self)
+      
+        toc = time.time()
+        if par.do_print and do_euler_error:
+            print(f'euler errors calculated in {toc-tic:.1f} secs')
+        
+        # e. utility
+        tic = time.time()        
+        if do_utility:
+            simulate.calc_utility(sim,par)
+      
+        toc = time.time()
+        if par.do_print and do_utility:
+            print(f'utility calculated in {toc-tic:.1f} secs')
 
     ################
     #    GenEq     #
@@ -580,14 +580,12 @@ class HAHModelClass(EconModelClass):
 #   def egm(self):        
 #       figs.egm(self)
 #
-#   def lifecycle(self,quantiles=False):        
-#       figs.lifecycle(self,quantiles=quantiles)
-#
-#   def mpc_over_cash_on_hand(self):
-#       figs.mpc_over_cash_on_hand(self)
-#
-#   def mpc_over_lifecycle(self):
-#       figs.mpc_over_lifecycle(self)
+def lifecycle(self,quantiles=False):        
+    figs.lifecycle(self,quantiles=quantiles)
+def mpc_over_cash_on_hand(self):
+    figs.mpc_over_cash_on_hand(self)
+def mpc_over_lifecycle(self):
+    figs.mpc_over_lifecycle(self)
 
 
     ################
