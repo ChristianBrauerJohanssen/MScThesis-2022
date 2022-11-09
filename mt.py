@@ -55,10 +55,10 @@ def alfahage(n,r):
      return ((1+r)**n-1)/(r*(1+r)**n)
 
 @njit(fastmath=True)
-def mpmt(d_org,t,Td,Tda,par):
+def mpmt(d,t,Td,Tda,par):
     """ 
     args:
-        d_org (float)   - mortgage principal at origination
+        d (float)       - outstanding mortgage balance
         Td (int)        - time of last mortgage term
         Tda (int)       _ remaining periods of deferred amortisation
     
@@ -69,24 +69,20 @@ def mpmt(d_org,t,Td,Tda,par):
         pr_rem          - remaining principal
     """
     #derive the mortgage schedule
-    if Tda > 0: 
+    if t >= Td:
+        # mortgage fully payed down
+        tot_pmt = 0
+    
+    elif Tda > 0: 
         # unpack 
         r = par.r_da
-
         # compute
-        tot_pmt = r*d_org
-        pr_rem = d_org
-        ir_pmt = tot_pmt
-        pr_pmt = 0
+        tot_pmt = r*d
         
     else: 
         # unpack
         r = par.r_m
-
         # compute
-        tot_pmt = d_org/alfahage(Td,r)
-        pr_rem = d_org/alfahage(Td,r)*alfahage(Td-t,r)
-        ir_pmt = r*d_org*(alfahage(Td-t+1,r)/alfahage(Td,r))
-        pr_pmt = (d_org/alfahage(Td,r))*(1-r*alfahage(Td-t+1,r))
+        tot_pmt = d*(r/(1-(1+r)**(t-Td)))
         
-    return tot_pmt,pr_rem,ir_pmt,pr_pmt
+    return tot_pmt

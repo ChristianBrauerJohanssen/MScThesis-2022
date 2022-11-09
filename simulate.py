@@ -8,6 +8,7 @@ from numba import njit, prange
 
 # b. NumEconCph packages
 from consav import linear_interp # for linear interpolation
+from consav.markov import choice # for lookup in transition matrix
 
 # c. local modules
 import trans
@@ -15,7 +16,7 @@ import utility
 import mt
 
 ###############################
-#    2. Simulate lifecyle     #
+#  2. Simulate lifecyle - PE  #
 ###############################
 
 @njit(parallel=True)
@@ -39,170 +40,220 @@ def lifecycle(sim,sol,par):
     c = sim.c
     a = sim.a 
     discrete = sim.discrete # living situation
-    
+
     # simulate forward
     for t in range(par.T):
         for i in prange(par.simN):
             
-            # a. beginning of period states
+            # a. shock realisation
+            if t == 0:    
+                p_y = sim.p_y_ini[i]
+                i_y_lag = choice(p_y,par.w_ergodic_cumsum)
+            else:
+                i_y_lag = sim.i_y[t-1,i]
+            
+            p_y = sim.p_y[t,i]
+            i_y_ = sim.i_y[t,i] = choice(p_y,par.w_trans_cumsum[i_y_lag,:])
+
+            # b. beginning of period states and income
             if t == 0:
                 h[t,i] = 0
                 d[t,i] = 0
                 Td[t,i] = 0
-                Tda[t,i] = 0
-                p[t,i] = sim.p0[i]
-                m[t,i] = sim.a0[i]
+                Tda[t,i] = 0                
+                p[t,i] = par.grid_w[i_y_]
+                y[t,i] = trans.p_to_y_func(i_y_,p[t,i],t,par)
+                m[t,i] = sim.a0[i] + y[t,i]
+                
             else:
                 h[t,i] = h_prime[t-1,i]
                 d[t,i] = trans.d_plus_func(d_prime[t-1,i],t,Td_prime[t-1,i],
                                            Tda_prime[t-1,i],par) # with or without trans_func?
                 Td[t,i] = Td_prime[t-1,i]
                 Tda[t,i] = trans.Tda_plus_func(Tda_prime[t-1,i]) 
-                p[t,i] = trans.p_plus_func(p[t-1,i],sim.psi[t,i],par,t-1)
-                m[t,i] = trans.m_plus_func(a[t-1,i],p[t,i],sim.xi[t,i],par,t)
-            
-            # scale mortgage grid
+                p[t,i] = par.grid_w[i_y_]
+                y[t,i] = trans.p_to_y_func(i_y_,p[t,i],t,par)
+                m[t,i] = trans.m_plus_func(a[t-1,i],y[t,i],d[t-1,i],Td[t-1,i],Tda[t-1,i],par,t)
+
+            # c. scale mortgage grid
             d_prime_high = par.q*h[t,i]
             grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
-
-            y[t,i] = p[t,i]*sim.xi[t,i] # add trans func
-
-            # b. optimal choices and post decision states
-            optimal_choice(i,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],p[t,i],m[t,i],
-                           h_prime[t,i:],d_prime[t,i:],grid_d_prime,Td_prime[t,i:],
-                           Tda_prime[t,i:],c[t,i:],a[t,i:],discrete[t,i:],sol,par)
+        
+            # d. optimal choices and post decision states
+            optimal_choice(i,i_y_,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],
+                           h_prime[t,i:],d_prime[t,i:],grid_d_prime,Td_prime[t,i:],Tda_prime[t,i:],
+                           c[t,i:],a[t,i:],discrete[t,i:],sol,par)
             
 @njit            
-def optimal_choice(i,t,h,d,Td,Tda,p,m,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,c,a,discrete,sol,par):
+def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,c,a,discrete,sol,par):
 
     # a. compute gross cash-on-hand
-    x = trans.x_plus_func(m,n,par)
+    m_gross_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
+    m_gross_rent = m_gross_buy = m-d+(1-par.delta-par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)
+    m_gross_ref = m_gross_stay-d
 
     # b. find indices of discrete vars
-    i_h = np.where(par.grid_h == h)
-    i_Td = Td - par.Td_bar
-    i_Tda = Tda
+    i_Td = int(Td - par.Td_bar)
+    i_Tda = int(Tda)
+    i_m_gross_ref = find_nearest(par.grid_x,m_gross_ref)
+    i_m_gross_buy = find_nearest(par.grid_x,m_gross_buy)
     
     # c. discrete choices
         # i. find best rent size
     inv_v_rent = 0 
     for i_ht in range(par.Nhtilde):
-        inv_v_rent_temp = linear_interp.interp_2d(par.grid_y,par.grid_m,sol.inv_v_keep[t,i_ht],p,m) 
+        inv_v_rent_temp = linear_interp.interp_1d(par.grid_m,sol.inv_v_rent[t,i_ht,i_y_],m_gross_rent) 
         if inv_v_rent_temp > inv_v_rent:
             inv_v_rent = inv_v_rent_temp
             i_ht_best = i_ht
             h_tilde = par.grid_htilde[i_ht_best]     
+        
+        # ii. buy  
+    inv_v_buy = linear_interp.interp_1d(par.grid_x,sol.inv_v_buy_fast[t,i_y_,:],m_gross_buy) 
+
+        # iii. stay and refinance
+    if h != 0:
+        i_h = np.where(par.grid_h == h)[0].item()
+        inv_v_stay = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.inv_v_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],d,m_gross_stay)    
+        inv_v_ref = linear_interp.interp_1d(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_y_,:],m_gross_ref)    
     
-        # ii. find best overall discrete choice
-    inv_v_stay = linear_interp.interp_3d(grid_d_prime,par.grid_p,par,par.grid_m,sol.inv_v_stay[t,i_h,:,i_Td,i_Tda,:,:],d,p,m)    
-    inv_v_ref = linear_interp.interp_3d(grid_d_prime,par.grid_p,par,par.grid_m,sol.inv_v_ref[t,i_h,:,i_Td,i_Tda,:,:],d,p,m)    
-    inv_v_buy = linear_interp.interp_3d(grid_d_prime,par.grid_p,par,par.grid_m,sol.inv_v_buy[t,i_h,:,i_Td,i_Tda,:,:],d,p,m)    
-
+    # d. find behaviour given discrete choice
     if h == 0:
-        discrete_choice = np.amax([inv_v_buy,inv_v_rent])
-    else: 
-        discrete_choice = np.amax([inv_v_stay,inv_v_ref,inv_v_buy,inv_v_rent])
-
-    # d. continuous choices
-        # i. stay and pay
-    if discrete_choice == inv_v_stay:
-
-        discrete[0] = 0
-        h_prime[0] = h
-        d_prime[0] = d
-        Td_prime[0] = Td
-        Tda_prime[0] = Tda
-
-
-        c[0] = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                       sol.c_stay[t,i_h,:,i_Td,i_Tda,:,:],d_prime,p,x)
-        
-        tot_exp = c[0] + par.delta*par.q*h + mt.property_tax(par.q,h,par)
-
-        ## ensure feasibility
-        if tot_exp > x: 
-            c[0] = c[0] - (tot_exp-x)
-            #if c[0] <= 0:
-                # do default
-            a[0] = 0.0
-        else:
-            a[0] = x - tot_exp
-        
-        # ii. stay and refinance
-    elif discrete_choice == inv_v_ref: 
+        discrete_choice = np.amax(np.array([inv_v_buy,inv_v_rent]))
+        # o. buy new house?
+        if discrete_choice == inv_v_buy: 
             
-        discrete[0] = 1
-        h_prime[0] = h
-        d_prime[0] = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                             sol.d_prime_ref[t,i_h,:,i_Td,i_Tda,:,:],
-                                             d,p,m)
-        Td_prime[0] = mt.Td_func(t,par)
-        Tda_float = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                             sol.Tda_prime_ref[t,i_h,:,i_Td,i_Tda,:,:],
-                                             d,p,m)
-        Tda_prime[0] = np.round(Tda_float,0)
+            discrete[0] = 2
+            
+            ## house purchase
+            h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
-        c[0] = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                       sol.c_ref[t,i_h,:,i_Td,i_Tda,:,:],
-                                       d,p,m)
+            ## mortgage plan choice
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_ref]
+            Td_prime[0] = mt.Td_func(t,par)
+            Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
+
+            ## consumption choice
+            c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
+
+            ## ensure feasibility (come back to this later)
+            loan = int(d_prime[0]>0)
+            tot_exp = m_gross_buy+(1+par.C_buy)*par.q*h+loan*par.Cf_ref-(1-par.Cp_ref)*d_prime[0]
+            if c[0] > tot_exp : 
+                c[0] = tot_exp
+                a[0] = 0.0
+            else:
+                a[0] = m - c[0]
         
-        ## ensure feasibility (come back to this later)
-        if c[0] > m: 
-            c[0] = m
-            a[0] = 0.0
-        else:
-            a[0] = m - c[0]
+        # oo. rent 
+        elif discrete_choice == inv_v_rent:
+            ## discrete choices (all fixed)
+            discrete[0] = 3
+            h_prime[0] = 0
+            d_prime[0] = 0
+            Td_prime[0] = 0
+            Tda_prime[0] = 0
 
-        # iii. buy new house
-    elif discrete_choice == inv_v_buy: 
+            ## consumption choice
+            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_gross_rent)
+
+            ## ensure feasibility
+            if c[0] > m_gross_rent-par.q_r*h_tilde:
+                c[0] = m_gross_rent-par.q_r*h_tilde
+                a[0] = 0.0
+            else: 
+                a[0] = m_gross_rent-par.q_r*h_tilde
+
+    else: 
+        discrete_choice = np.amax(np.array([inv_v_stay,inv_v_ref,inv_v_buy,inv_v_rent]))
+
+        # o. stay and pay
+        if discrete_choice == inv_v_stay:
+            ## discrete choices (all fixed)
+            discrete[0] = 0
+            h_prime[0] = h
+            d_prime[0] = d
+            Td_prime[0] = Td
+            Tda_prime[0] = Tda
+
+            ## consumption choice
+            c[0] = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.c_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],
+                                           d,m_gross_stay)
+
+            ## credit constrained? 
+            if c[0] > m_gross_stay:
+                c[0] = m_gross_stay
+                #if c[0] <= 0:
+                    # do default
+                a[0] = 0.0
+            else:
+                a[0] = m_gross_stay - c[0]
+
+        # oo. stay and refinance
+        elif discrete_choice == inv_v_ref: 
+            ## fixed discrete choices
+            discrete[0] = 1
+            Td_prime[0] = mt.Td_func(t,par)
+
+            ## mortgage plan choice
+            d_prime[0] = sol.d_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref]                                 
+            Tda_prime[0] = sol.Tda_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref]
+
+            ## consumption choice
+            c[0] = linear_interp.interp_1d(par.grid_x,sol.c_ref_fast[t,i_h,i_y_,:],m_gross_ref)
+
+            ## ensure feasibility
+            loan = int(d_prime[0]>0)
+            tot_exp = m_gross_ref+loan*par.Cf_ref-(1-par.Cp_ref)*d_prime[0]
+            if c[0] > tot_exp:
+                c[0] = tot_exp
+                a[0] = 0.0
+            else:
+                a[0] = tot_exp - c[0]
+
+        # ooo. buy new house
+        elif discrete_choice == inv_v_buy: 
+
+            discrete[0] = 2
+
+            ## house purchase
+            h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
+
+            ## mortgage plan choice
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_ref]
+            Td_prime[0] = mt.Td_func(t,par)
+            Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
+
+            ## consumption choice
+            c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
+
+            ## ensure feasibility (come back to this later)
+            loan = int(d_prime[0]>0)
+            tot_exp = m_gross_buy+(1+par.C_buy)*par.q*h+loan*par.Cf_ref-(1-par.Cp_ref)*d_prime[0]
+            if c[0] > tot_exp : 
+                c[0] = tot_exp
+                a[0] = 0.0
+            else:
+                a[0] = m - c[0]
         
-        discrete[0] = 2
+        # oooo. rent
+        elif discrete_choice == inv_v_rent:
+            ## discrete choices (all fixed)
+            discrete[0] = 3
+            h_prime[0] = 0
+            d_prime[0] = 0
+            Td_prime[0] = 0
+            Tda_prime[0] = 0
 
-        ## house purchase
-        h_prime_offgrid = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                             sol.h_buy[t,i_h,:,i_Td,i_Tda,:,:],
-                                             d,p,m)
-        i_h_prime = np.searchsorted(par.grid_h,h_prime_offgrid,side='left') # find nearest point in grid
-        h_prime = par.grid_h[i_h_prime-1] #??
+            ## consumption choice
+            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_gross_rent)
 
-        ## scale new mortgage grid
-        d_prime_high_buy = par.q*h_prime
-        grid_d_prime_buy = np.linspace(0,d_prime_high_buy,par.Nd)
-        d_prime[0] = linear_interp.interp_3d(grid_d_prime_buy,par.grid_p,par.grid_m,
-                                             sol.d_prime_ref[t,i_h,:,i_Td,i_Tda,:,:],
-                                             d,p,m)
-        Td_prime[0] = mt.Td_func(t,par)
-        Tda_float = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                             sol.Tda_prime_ref[t,i_h,:,i_Td,i_Tda,:,:],
-                                             d,p,m)
-        Tda_prime[0] = np.round(Tda_float,0)
-
-        c[0] = linear_interp.interp_3d(grid_d_prime,par.grid_p,par.grid_m,
-                                       sol.c_ref[t,i_h,:,i_Td,i_Tda,:,:],
-                                       d,p,m)
-
-        ## ensure feasibility (come back to this later)
-        if c[0] > m: 
-            c[0] = m
-            a[0] = 0.0
-        else:
-            a[0] = m - c[0]
-
-
-    elif discrete_choice == inv_v_rent:
-        
-        discrete[0] = 3
-        h_prime[0] = 0
-        d_prime[0] = 0
-        Td_prime[0] = 0
-        Tda_prime[0] = 0
-
-        c[0] = linear_interp.interp_2d(par.grid_p,par.grid_m,
-                                       sol.c_rent[t,i_ht_best],
-                                       p,m)
-        
-        # back out gross cash on hand and ensure feasibility
-        # come back to this later
+            ## ensure feasibility
+            if c[0] > m_gross_rent-par.q_r*h_tilde:
+                c[0] = m_gross_rent-par.q_r*h_tilde
+                a[0] = 0.0
+            else: 
+                a[0] = m_gross_rent-par.q_r*h_tilde
 
 @njit            
 def euler_errors(sim,sol,par):
@@ -262,7 +313,7 @@ def euler_errors(sim,sol,par):
                 euler_error_c[t,i] = sim.c[t,i]
 
 @njit(parallel=True)
-def calc_utility(sim,sol,par):
+def calc_utility(sim,par):
     """ calculate utility for each individual """
 
     # unpack
@@ -273,3 +324,32 @@ def calc_utility(sim,sol,par):
             
             u[i] += par.beta**t*utility.func(sim.c[t,i],sim.d[t,i],par)
             
+@njit
+def find_nearest(array,value):
+    
+    # end points
+    n = len(array)
+    if (value < array[0]):
+        return -1
+    elif (value > array[n-1]):
+        return n
+    
+    # initialise limits for interior points
+    jl = 0                                                  
+    ju = n-1
+
+    # repeat until ju and jl are neighbour indices                              
+    while (ju-jl > 1):
+        jm=(ju+jl) >> 1             
+        if (value >= array[jm]):
+            jl=jm # and replace either the lower limit
+        else:
+            ju=jm # or the upper limit, as appropriate.
+    
+    # return index
+    if (value == array[0]):# edge cases at bottom
+        return 0
+    elif (value == array[n-1]):# and top
+        return n-1
+    else:
+        return jl
