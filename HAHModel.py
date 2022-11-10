@@ -118,7 +118,7 @@ class HAHModelClass(EconModelClass):
 
         # g. price guesses for stationary equilibrium
         par.q = 1.0                                                     # house price guess
-        par.q_r = par.gamma + par.q - (1-par.delta)/(1-par.r)*par.q     # implied rental price
+        par.q_r = par.gamma+par.q-(1-par.delta)/(1-par.r)*par.q         # implied rental price
 
         # h. grids
         par.Nh = 6                                      # points in owner occupied housing grid
@@ -211,7 +211,6 @@ class HAHModelClass(EconModelClass):
         par.w_ergodic_cumsum = np.cumsum(par.w_ergodic)
         par.w_trans_T = par.w_trans.T
 
-
         # d. set seed
         np.random.seed(par.sim_seed)
 
@@ -252,7 +251,7 @@ class HAHModelClass(EconModelClass):
         fastpar['Nm'] = 3
         fastpar['Nx'] = 3
         fastpar['Na'] = 3
-        fastpar['simN'] = 2 # add when simulation module is done
+        fastpar['simN'] = 2
 
         # b. apply
         for key,val in fastpar.items():
@@ -341,9 +340,8 @@ class HAHModelClass(EconModelClass):
         sol.c_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na)) 
         sol.m_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na))
 
-
     def solve(self,do_assert=True):
-        """ solve the model using NEGM and NVFI
+        """ solve the household problem using NEGM
         
         Args:
 
@@ -470,10 +468,6 @@ class HAHModelClass(EconModelClass):
         par = self.par
         sim = self.sim
 
-    
-        par = self.par
-        sim = self.sim
-
         # a. initial wealth       
         sim.a0 = np.zeros(par.simN)
 
@@ -490,7 +484,6 @@ class HAHModelClass(EconModelClass):
         sim.y = np.zeros(sim_shape)
         sim.m = np.zeros(sim_shape)
 
-        #sim.h_prime = np.zeros(sim_shape)
         sim.h_prime = np.zeros(sim_shape)
         sim.d_prime = np.zeros(sim_shape)
         sim.Td_prime = np.zeros(sim_shape)
@@ -525,7 +518,7 @@ class HAHModelClass(EconModelClass):
         sim_shape = (par.T,par.simN)
         sim.p_y_ini[:] = np.random.uniform(size=par.simN)
         sim.p_y[:,:] = np.random.uniform(size=(sim_shape))
-        sim.a0[:] = par.mu_a0*np.random.lognormal(mean=-0.2,sigma=par.sigma_a0,size=par.simN)
+        sim.a0[:] = par.mu_a0*np.random.lognormal(mean=0,sigma=par.sigma_a0,size=par.simN)
         
         # b. call
         with jit(self) as model:
@@ -568,8 +561,8 @@ class HAHModelClass(EconModelClass):
     #    GenEq     #
     ################
 
-    #prepare_hh_ss = steady_state.prepare_hh_ss
-    #find_ss = steady_state.find_ss
+    prepare_hh_ss = steady_state.prepare_hh_ss
+    find_ss = steady_state.find_ss
 
     ################
     #    Figures   #
@@ -581,12 +574,14 @@ class HAHModelClass(EconModelClass):
 #   def egm(self):        
 #       figs.egm(self)
 #
-    def lifecycle(self,quantiles=False):        
+    def fig_lifecycle(self,quantiles=False):        
         figs.lifecycle(self,quantiles=quantiles)
-    def mpc_over_cash_on_hand(self):
-        figs.mpc_over_cash_on_hand(self)
-    def mpc_over_lifecycle(self):
-        figs.mpc_over_lifecycle(self)
+    def fig_homeownership(self):
+        figs.homeownership(self)
+    #def mpc_over_cash_on_hand(self):
+    #    figs.mpc_over_cash_on_hand(self)
+    #def mpc_over_lifecycle(self):
+    #    figs.mpc_over_lifecycle(self)
 
 
     ################

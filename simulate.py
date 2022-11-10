@@ -259,6 +259,12 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
             else: 
                 a[0] = m_net_rent - c[0]
 
+@njit
+def aggregate_housing_demand(sim,par):
+    H = np.sum(sim.h)
+    return H
+
+
 @njit            
 def euler_errors(sim,sol,par):
 
@@ -351,9 +357,9 @@ def find_nearest(array,value):
             ju=jm # or the upper limit, as appropriate.
     
     # return index
-    if (value == array[0]):# edge cases at bottom
+    if (value == array[0]): # edge cases at bottom
         return 0
-    elif (value == array[n-1]):# and top
+    elif (value == array[n-1]): # and top
         return n-1
     else:
         return jl
