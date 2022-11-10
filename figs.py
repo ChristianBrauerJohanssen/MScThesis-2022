@@ -28,13 +28,13 @@ def lifecycle(model,quantiles:bool=False):
     # b. figure
     fig = plt.figure(figsize=(12,12))
 
-    simvarlist = [('y','$y_t$'),
-                  ('h','$h_t$'),
-                  ('d','$d_t$'),
-                  ('d_prime','$d^{\prime}_t$'),
-                  ('m','$m_t$'),
-                  ('c','$c_t$'),
-                  ('a','$a_t$'),                  
+    simvarlist = [('y','$y_t$ - mean pre-tax income'),
+                  ('h','$h_t$ - mean house size'),
+                  ('d','$d_t$ - mean debt beg.'),
+                  ('d_prime','$d^{\prime}_t$ - mean debt post'),
+                  ('m','$m_t$ - mean cash on hand beg.'),
+                  ('c','$c_t$ - mean consumption '),
+                  ('a','$a_t$ - mean liquids assets post'),                  
                   ]
 
     # determine number of rows in figure, given the number of columns
@@ -61,11 +61,11 @@ def lifecycle(model,quantiles:bool=False):
 
         else:
             ax.plot(age,np.mean(simdata,axis=1),lw=2)
-            if simvar not in ['discrete','mpc']:
-                ax.plot(age,np.percentile(simdata,25,axis=1),
-                    ls='--',lw=1,color='black')
-                ax.plot(age,np.percentile(simdata,75,axis=1),
-                    ls='--',lw=1,color='black')
+            #if simvar not in ['discrete','mpc']:
+            #    ax.plot(age,np.percentile(simdata,25,axis=1),
+            #        ls='--',lw=1,color='black')
+            #    ax.plot(age,np.percentile(simdata,75,axis=1),
+            #        ls='--',lw=1,color='black')
         ax.set_title(simvarlatex)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
@@ -76,7 +76,7 @@ def lifecycle(model,quantiles:bool=False):
         if i in [len(simvarlist)-i-1 for i in range(cols)]:
             ax.set_xlabel('age')
     plt.tight_layout()
-    #plt.savefig('output/life_cycle_baseline.png')
+    plt.savefig('output/life_cycle_baseline.png')
     plt.show()
 
 def homeownership(model):
@@ -87,10 +87,32 @@ def homeownership(model):
     # a. unpack
     par = model.par
     sim = model.sim 
+    
+    # b. allocate containers and compute shares
+    own_share = np.zeros(par.T)
+    stay_share = np.zeros(par.T)
+    ref_share = np.zeros(par.T)
+    buy_share = np.zeros(par.T)
+    rent_share = np.zeros(par.T)
+    
+    for t in range(par.T):
+        stay_share[t] = np.sum(sim.discrete[t]==0)/par.simN
+        ref_share[t] = np.sum(sim.discrete[t]==1)/par.simN
+        buy_share[t] = np.sum(sim.discrete[t]==2)/par.simN
+        rent_share[t] = np.sum(sim.discrete[t]==3)/par.simN
+        assert np.isclose(stay_share[t]+ref_share[t]+buy_share[t]+rent_share[t],1), print(f'discrete shares does not sum to one in period {t}') 
+    
+    own_share = stay_share + ref_share + buy_share
+    
+    simvardict = {'owners':own_share,
+                  'renters':rent_share,         
+                  'stayers':stay_share,
+                  'refinancers':ref_share,
+                  'buyers':buy_share     
+                }
 
     # b. figure
     fig = plt.figure(figsize=(12,12))
-
 
     # determine number of rows in figure, given the number of columns
     cols = 2
@@ -98,25 +120,18 @@ def homeownership(model):
 
     # x-axis labels
     age = np.arange(par.T)+par.Tmin
-
-    for i,(simvar,simvarlatex) in enumerate(simvarlist):
-
-        ax = fig.add_subplot(rows,cols,i+1)
     
-        ax.plot(age,np.mean(simdata,axis=1),lw=2)
-        #if simvar not in ['discrete','mpc']:
-        #    ax.plot(age,np.percentile(simdata,25,axis=1),
-        #        ls='--',lw=1,color='black')
-        #    ax.plot(age,np.percentile(simdata,75,axis=1),
-        #        ls='--',lw=1,color='black')
-        ax.set_title(simvarlatex)
+    for i,key in enumerate(simvardict.keys()):
+        ax = fig.add_subplot(rows,cols,i+1)
+        ax.plot(age,simvardict[key],lw=2)
+        ax.set_title(key)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
         else:
             ax.xaxis.set_ticks(age)
     
     plt.tight_layout()
-    #plt.savefig('output/life_cycle_baseline.png')
+    plt.savefig('output/homeownership_baseline.png')
     plt.show()
 
 

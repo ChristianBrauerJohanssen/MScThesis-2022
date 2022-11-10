@@ -581,12 +581,12 @@ class HAHModelClass(EconModelClass):
 #   def egm(self):        
 #       figs.egm(self)
 #
-def lifecycle(self,quantiles=False):        
-    figs.lifecycle(self,quantiles=quantiles)
-def mpc_over_cash_on_hand(self):
-    figs.mpc_over_cash_on_hand(self)
-def mpc_over_lifecycle(self):
-    figs.mpc_over_lifecycle(self)
+    def lifecycle(self,quantiles=False):        
+        figs.lifecycle(self,quantiles=quantiles)
+    def mpc_over_cash_on_hand(self):
+        figs.mpc_over_cash_on_hand(self)
+    def mpc_over_lifecycle(self):
+        figs.mpc_over_lifecycle(self)
 
 
     ################

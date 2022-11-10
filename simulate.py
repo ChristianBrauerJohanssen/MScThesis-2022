@@ -102,7 +102,8 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
         # i. find best rent size
     inv_v_rent = 0 
     for i_ht in range(par.Nhtilde):
-        inv_v_rent_temp = linear_interp.interp_1d(par.grid_m,sol.inv_v_rent[t,i_ht,i_y_],m_gross_rent) 
+        m_net_rent = m_gross_rent - par.q_r*par.grid_htilde[i_ht]
+        inv_v_rent_temp = linear_interp.interp_1d(par.grid_m,sol.inv_v_rent[t,i_ht,i_y_],m_net_rent) 
         if inv_v_rent_temp > inv_v_rent:
             inv_v_rent = inv_v_rent_temp
             i_ht_best = i_ht
@@ -124,7 +125,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
         if discrete_choice == inv_v_buy: 
             
             discrete[0] = 2
-            
+
             ## house purchase
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
@@ -138,12 +139,12 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
 
             ## ensure feasibility (come back to this later)
             loan = int(d_prime[0]>0)
-            tot_exp = m_gross_buy+(1+par.C_buy)*par.q*h+loan*par.Cf_ref-(1-par.Cp_ref)*d_prime[0]
-            if c[0] > tot_exp : 
-                c[0] = tot_exp
+            m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            if c[0] > m_net_buy : 
+                c[0] = m_net_buy
                 a[0] = 0.0
             else:
-                a[0] = m - c[0]
+                a[0] = m_net_buy - c[0]
         
         # oo. rent 
         elif discrete_choice == inv_v_rent:
@@ -155,14 +156,15 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
             Tda_prime[0] = 0
 
             ## consumption choice
-            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_gross_rent)
+            m_net_rent = m_gross_rent - par.q_r*h_tilde
+            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_net_rent)
 
             ## ensure feasibility
-            if c[0] > m_gross_rent-par.q_r*h_tilde:
-                c[0] = m_gross_rent-par.q_r*h_tilde
+            if c[0] > m_net_rent:
+                c[0] = m_net_rent
                 a[0] = 0.0
             else: 
-                a[0] = m_gross_rent-par.q_r*h_tilde
+                a[0] = m_net_rent - c
 
     else: 
         discrete_choice = np.amax(np.array([inv_v_stay,inv_v_ref,inv_v_buy,inv_v_rent]))
@@ -193,6 +195,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
         elif discrete_choice == inv_v_ref: 
             ## fixed discrete choices
             discrete[0] = 1
+            h_prime[0] = h
             Td_prime[0] = mt.Td_func(t,par)
 
             ## mortgage plan choice
@@ -204,12 +207,12 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
 
             ## ensure feasibility
             loan = int(d_prime[0]>0)
-            tot_exp = m_gross_ref+loan*par.Cf_ref-(1-par.Cp_ref)*d_prime[0]
-            if c[0] > tot_exp:
-                c[0] = tot_exp
+            m_net_ref = m_gross_ref-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            if c[0] > m_net_ref:
+                c[0] = m_net_ref
                 a[0] = 0.0
             else:
-                a[0] = tot_exp - c[0]
+                a[0] = m_net_ref - c[0]
 
         # ooo. buy new house
         elif discrete_choice == inv_v_buy: 
@@ -229,12 +232,12 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
 
             ## ensure feasibility (come back to this later)
             loan = int(d_prime[0]>0)
-            tot_exp = m_gross_buy+(1+par.C_buy)*par.q*h+loan*par.Cf_ref-(1-par.Cp_ref)*d_prime[0]
-            if c[0] > tot_exp : 
-                c[0] = tot_exp
+            m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            if c[0] > m_net_buy : 
+                c[0] = m_net_buy
                 a[0] = 0.0
             else:
-                a[0] = m - c[0]
+                a[0] = m_net_buy - c[0]
         
         # oooo. rent
         elif discrete_choice == inv_v_rent:
