@@ -28,15 +28,13 @@ def lifecycle(model,quantiles:bool=False):
     # b. figure
     fig = plt.figure(figsize=(12,12))
 
-    simvarlist = [('p','$p_t$'),
-                  ('y','$y_t$'),
+    simvarlist = [('y','$y_t$'),
                   ('h','$h_t$'),
                   ('d','$d_t$'),
                   ('d_prime','$d^{\prime}_t$'),
                   ('m','$m_t$'),
                   ('c','$c_t$'),
-                  ('a','$a_t$'),
-                  ('discrete','adjuster share')                  
+                  ('a','$a_t$'),                  
                   ]
 
     # determine number of rows in figure, given the number of columns
@@ -63,11 +61,11 @@ def lifecycle(model,quantiles:bool=False):
 
         else:
             ax.plot(age,np.mean(simdata,axis=1),lw=2)
-            #if simvar not in ['discrete','mpc']:
-            #    ax.plot(age,np.percentile(simdata,25,axis=1),
-            #        ls='--',lw=1,color='black')
-            #    ax.plot(age,np.percentile(simdata,75,axis=1),
-            #        ls='--',lw=1,color='black')
+            if simvar not in ['discrete','mpc']:
+                ax.plot(age,np.percentile(simdata,25,axis=1),
+                    ls='--',lw=1,color='black')
+                ax.plot(age,np.percentile(simdata,75,axis=1),
+                    ls='--',lw=1,color='black')
         ax.set_title(simvarlatex)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
@@ -80,6 +78,47 @@ def lifecycle(model,quantiles:bool=False):
     plt.tight_layout()
     #plt.savefig('output/life_cycle_baseline.png')
     plt.show()
+
+def homeownership(model):
+    """ 
+    Plots the share of renters, homeowners, stayers, buyers and refinancers 
+    over the life cycle
+    """
+    # a. unpack
+    par = model.par
+    sim = model.sim 
+
+    # b. figure
+    fig = plt.figure(figsize=(12,12))
+
+
+    # determine number of rows in figure, given the number of columns
+    cols = 2
+    rows = 3
+
+    # x-axis labels
+    age = np.arange(par.T)+par.Tmin
+
+    for i,(simvar,simvarlatex) in enumerate(simvarlist):
+
+        ax = fig.add_subplot(rows,cols,i+1)
+    
+        ax.plot(age,np.mean(simdata,axis=1),lw=2)
+        #if simvar not in ['discrete','mpc']:
+        #    ax.plot(age,np.percentile(simdata,25,axis=1),
+        #        ls='--',lw=1,color='black')
+        #    ax.plot(age,np.percentile(simdata,75,axis=1),
+        #        ls='--',lw=1,color='black')
+        ax.set_title(simvarlatex)
+        if par.T > 10:
+            ax.xaxis.set_ticks(age[::5])
+        else:
+            ax.xaxis.set_ticks(age)
+    
+    plt.tight_layout()
+    #plt.savefig('output/life_cycle_baseline.png')
+    plt.show()
+
 
 def mpc_over_cash_on_hand(model):
     '''plot mpc as a function of cash-on-hand for given t'''

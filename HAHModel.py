@@ -133,6 +133,7 @@ class HAHModelClass(EconModelClass):
         par.Na = 10                                     # points in assets grid
         par.m_max = 15.0                                # maximum cash-on-hand
         par.x_max = 15.0                                # maximum gross resources
+        par.x_min = -5.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max+1.0                       # maximum assets
 
         # i. simulation
@@ -169,7 +170,7 @@ class HAHModelClass(EconModelClass):
         # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
         par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-        par.grid_x = equilogspace(-5,par.x_max,par.Nx)
+        par.grid_x = equilogspace(par.x_min,par.x_max,par.Nx)
         par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double') # strictly speaking, htilde is not a state
         
         # b. post-decision assets
