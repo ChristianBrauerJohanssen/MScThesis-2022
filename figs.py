@@ -66,7 +66,7 @@ def lifecycle(model,quantiles:bool=False):
             #        ls='--',lw=1,color='black')
             #    ax.plot(age,np.percentile(simdata,75,axis=1),
             #        ls='--',lw=1,color='black')
-        ax.set_title(simvarlatex,fontsize=16)
+        ax.set_title(simvarlatex,fontsize=20)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
         else:
@@ -124,7 +124,7 @@ def homeownership(model):
     for i,key in enumerate(simvardict.keys()):
         ax = fig.add_subplot(rows,cols,i+1)
         ax.plot(age,simvardict[key],lw=2)
-        ax.set_title(key,fontsize=16)
+        ax.set_title(key,fontsize=20)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
         else:
