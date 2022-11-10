@@ -164,7 +164,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
                 c[0] = m_net_rent
                 a[0] = 0.0
             else: 
-                a[0] = m_net_rent - c
+                a[0] = m_net_rent - c[0]
 
     else: 
         discrete_choice = np.amax(np.array([inv_v_stay,inv_v_ref,inv_v_buy,inv_v_rent]))
@@ -249,14 +249,15 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
             Tda_prime[0] = 0
 
             ## consumption choice
-            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_gross_rent)
+            m_net_rent = m_gross_rent - par.q_r*h_tilde
+            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_net_rent)
 
             ## ensure feasibility
-            if c[0] > m_gross_rent-par.q_r*h_tilde:
-                c[0] = m_gross_rent-par.q_r*h_tilde
+            if c[0] > m_net_rent:
+                c[0] = m_net_rent
                 a[0] = 0.0
             else: 
-                a[0] = m_gross_rent-par.q_r*h_tilde
+                a[0] = m_net_rent - c[0]
 
 @njit            
 def euler_errors(sim,sol,par):

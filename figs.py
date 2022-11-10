@@ -30,7 +30,7 @@ def lifecycle(model,quantiles:bool=False):
 
     simvarlist = [('y','$y_t$ - mean pre-tax income'),
                   ('h','$h_t$ - mean house size'),
-                  ('d','$d_t$ - mean debt beg.'),
+                  #('d','$d_t$ - mean debt beg.'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
                   ('m','$m_t$ - mean cash on hand beg.'),
                   ('c','$c_t$ - mean consumption '),
@@ -104,7 +104,7 @@ def homeownership(model):
     
     own_share = stay_share + ref_share + buy_share
     
-    simvardict = {'owners':own_share,
+    simvardict = {#'owners':own_share,
                   'renters':rent_share,         
                   'stayers':stay_share,
                   'refinancers':ref_share,

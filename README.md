@@ -30,6 +30,6 @@ Packages required for running the notebooks are:
 - [matplotlib](https://pypi.org/project/matplotlib/)
 - [numpy](https://pypi.org/project/numpy/)
 - [numba](https://pypi.org/project/numba/)
-<!-- - [pandas](https://pypi.org/project/pandas/)
-- [quantecon](https://pypi.org/project/quantecon/)
+- [pandas](https://pypi.org/project/pandas/)
+<!-- - [quantecon](https://pypi.org/project/quantecon/)
 -->
