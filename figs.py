@@ -29,7 +29,7 @@ def lifecycle(model,quantiles:bool=False):
     fig = plt.figure(figsize=(12,12))
 
     simvarlist = [('y','$y_t$ - mean pre-tax income'),
-                  ('h','$h_t$ - mean house size'),
+                  ('h_prime','$h_t$ - mean house size'),
                   #('d','$d_t$ - mean debt beg.'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
                   ('m','$m_t$ - mean cash on hand beg.'),

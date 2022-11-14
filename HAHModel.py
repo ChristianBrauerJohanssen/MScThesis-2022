@@ -137,10 +137,10 @@ class HAHModelClass(EconModelClass):
         par.a_max = par.m_max+1.0                       # maximum assets
 
         # i. simulation
-        par.mu_a0 = 0.2                                 # mean initial assets
-        par.sigma_a0 = 0.1                              # standard dev. of initial assets
+        par.mu_a0 = 1.0                                 # mean initial assets
+        par.sigma_a0 = 1.0                              # standard dev. of initial assets
         
-        par.simN = 10_000                               # number of simulated agents
+        par.simN = 100_000                              # number of simulated agents
         par.sim_seed = 1995                             # seed for random number generator
         par.euler_cutoff = 0.02                         # euler error cutoff
 
@@ -150,7 +150,7 @@ class HAHModelClass(EconModelClass):
         par.do_print = False                            # whether to print solution progress
         par.do_print_period = False                     # whether to print solution progress every period
         par.max_iter_solve = 50_000                     # max iterations when solving household problem
-        par.max_iter_simulate = 50_000                  # max iterations when simulating household problem
+        par.max_iter_simulate = 5_000                  # max iterations when simulating household problem
         par.include_unemp = True
 
     def allocate(self):
@@ -252,6 +252,8 @@ class HAHModelClass(EconModelClass):
         fastpar['Nx'] = 3
         fastpar['Na'] = 3
         fastpar['simN'] = 2
+        fastpar['chi'] = par.chi[0:4]
+        fastpar['n'] = par.n[0:4]
 
         # b. apply
         for key,val in fastpar.items():
@@ -485,6 +487,7 @@ class HAHModelClass(EconModelClass):
         sim.m = np.zeros(sim_shape)
 
         sim.h_prime = np.zeros(sim_shape)
+        sim.h_tilde = np.zeros(sim_shape)
         sim.d_prime = np.zeros(sim_shape)
         sim.Td_prime = np.zeros(sim_shape)
         sim.Tda_prime = np.zeros(sim_shape)
@@ -560,8 +563,8 @@ class HAHModelClass(EconModelClass):
     ################
     #    GenEq     #
     ################
-
-    prepare_hh_ss = steady_state.prepare_hh_ss
+    bequest_loop = steady_state.bequest_loop
+    #prepare_hh_ss = steady_state.prepare_hh_ss
     find_ss = steady_state.find_ss
 
     ################

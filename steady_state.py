@@ -4,8 +4,64 @@ import numpy as np
 from consav.grids import equilogspace
 from consav.markov import log_rouwenhorst
 from consav.misc import elapsed
+from consav import jit
 
 import root_finding
+import simulate
+
+def bequest_loop(model,bequest_guess,step_size=0.5):
+    """ simulate the model to match initial wealth with bequests"""
+    
+    # a. unpack
+    sol = model.sol
+    sim = model.sim
+    par = model.par
+    ss = model.ss
+
+    par.do_print = False
+
+    # b. simulate the model for initial guess and fixed draws
+    draws = np.random.lognormal(mean=0,sigma=par.sigma_a0,size=par.simN)
+
+    sim.a0[:] = bequest_guess*draws
+        
+        # b. call
+    with jit(model) as model_jit:
+        par = model_jit.par
+        sol = model_jit.sol
+        sim = model_jit.sim
+        simulate.lifecycle(sim,sol,par)
+    
+    discrepancy = np.mean(sim.a0) - np.mean(sim.a[par.T-1,:])
+
+    # c. iterate until initial wealth match bequest
+    iteration = 0
+    while np.abs(discrepancy) > par.tol*10**6 and iteration < par.max_iter_simulate:
+    
+        # update mean initial wealth
+        bequest_guess -= step_size*discrepancy
+
+        # simulate model
+        with jit(model) as model:
+            sim.a0[:] = bequest_guess*draws
+            simulate.lifecycle(sim,sol,par)
+        
+        discrepancy = np.mean(sim.a0) - np.mean(sim.a[par.T-1,:])
+
+        # update counter and print statement
+        iteration += 1
+        if iteration%1 == 0:
+            print(f'iteration = {iteration}, discrepancy = {discrepancy:.6f}')
+
+    # terminal statement
+    if np.abs(discrepancy) > par.tol*10**6:
+        print(f'stable bequest not found in {iteration} simulations')
+    else:
+        print(f'convergence achieved in {iteration} simulations, mean bequest = {bequest_guess:.6f}')
+    
+    par = model.par
+    par.do_print = True
+    
 
 def obj_ss(H_ss_guess,model,do_print=False):
     """ objective when solving for steady state housing """

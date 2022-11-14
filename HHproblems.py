@@ -256,6 +256,7 @@ def solve_stay(t,sol,par):
     m_endo = sol.m_endo_stay[t]
     inv_v_bar = sol.inv_v_bar[t]
     q_stay = sol.q[t]
+    n = par.n[t]
 
     # b. unpack output
     inv_v_stay = sol.inv_v_stay[t]
@@ -281,7 +282,7 @@ def solve_stay(t,sol,par):
                             a = par.grid_a[i_a]
  
                             # oo. back out optimal consumption 
-                            c_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a] = par.n[t]*(q_stay[i_h,i_d,i_Td,i_Tda,i_w,i_a]/(1-par.nu))**(1/-par.rho)
+                            c_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a] = n*(q_stay[i_h,i_d,i_Td,i_Tda,i_w,i_a]/(1-par.nu))**(1/-par.rho)
                             m_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a] = a + c_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a]
                             
                         # ii. interpolate from post decision space to beginning of period states
@@ -307,7 +308,7 @@ def solve_stay(t,sol,par):
                         for i_m in range(par.Nm): 
                             inv_v_stay[i_h,i_d,i_Td,i_Tda,i_w,i_m] = -1/v_stay_vec[i_m]
                             inv_marg_u_stay[i_h,i_d,i_Td,i_Tda,i_w,i_m] = 1/utility.marg_func_nopar(c_stay[i_h,i_d,i_Td,i_Tda,i_w,i_m],
-                                                                                                    par.nu,par.rho,par.n[t])
+                                                                                                    par.nu,par.rho,n)
 
 
 ####################

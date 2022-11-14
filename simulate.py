@@ -34,6 +34,7 @@ def lifecycle(sim,sol,par):
 
     # unpack choice containers
     h_prime = sim.h_prime
+    h_tilde = sim.h_tilde
     d_prime = sim.d_prime
     Td_prime = sim.Td_prime 
     Tda_prime = sim.Tda_prime 
@@ -80,12 +81,12 @@ def lifecycle(sim,sol,par):
             grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
         
             # d. optimal choices and post decision states
-            optimal_choice(i,i_y_,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],
+            optimal_choice(i,i_y_,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],h_tilde[t,i:],
                            h_prime[t,i:],d_prime[t,i:],grid_d_prime,Td_prime[t,i:],Tda_prime[t,i:],
                            c[t,i:],a[t,i:],discrete[t,i:],sol,par)
             
 @njit            
-def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,c,a,discrete,sol,par):
+def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,c,a,discrete,sol,par):
 
     # a. compute gross cash-on-hand
     m_gross_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
@@ -107,7 +108,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
         if inv_v_rent_temp > inv_v_rent:
             inv_v_rent = inv_v_rent_temp
             i_ht_best = i_ht
-            h_tilde = par.grid_htilde[i_ht_best]     
+            h_tilde_best = par.grid_htilde[i_ht_best]     
         
         # ii. buy  
     inv_v_buy = linear_interp.interp_1d(par.grid_x,sol.inv_v_buy_fast[t,i_y_,:],m_gross_buy) 
@@ -137,7 +138,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
             ## consumption choice
             c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
 
-            ## ensure feasibility (come back to this later)
+            ## ensure feasibility 
             loan = int(d_prime[0]>0)
             m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
             if c[0] > m_net_buy : 
@@ -150,13 +151,14 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
         elif discrete_choice == inv_v_rent:
             ## discrete choices (all fixed)
             discrete[0] = 3
+            h_tilde[0] = h_tilde_best
             h_prime[0] = 0
             d_prime[0] = 0
             Td_prime[0] = 0
             Tda_prime[0] = 0
 
             ## consumption choice
-            m_net_rent = m_gross_rent - par.q_r*h_tilde
+            m_net_rent = m_gross_rent - par.q_r*h_tilde_best
             c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_net_rent)
 
             ## ensure feasibility
@@ -243,13 +245,14 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
         elif discrete_choice == inv_v_rent:
             ## discrete choices (all fixed)
             discrete[0] = 3
+            h_tilde[0] = h_tilde_best
             h_prime[0] = 0
             d_prime[0] = 0
             Td_prime[0] = 0
             Tda_prime[0] = 0
 
             ## consumption choice
-            m_net_rent = m_gross_rent - par.q_r*h_tilde
+            m_net_rent = m_gross_rent - par.q_r*h_tilde_best
             c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_net_rent)
 
             ## ensure feasibility
@@ -258,11 +261,6 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_prime,d_prime,grid_d_prime,Td_prime,T
                 a[0] = 0.0
             else: 
                 a[0] = m_net_rent - c[0]
-
-@njit
-def aggregate_housing_demand(sim,par):
-    H = np.sum(sim.h)
-    return H
 
 
 @njit            
@@ -331,12 +329,25 @@ def calc_utility(sim,par):
     
     for t in range(par.T):
         for i in prange(par.simN):
-            
-            u[i] += par.beta**t*utility.func(sim.c[t,i],sim.d[t,i],par)
-            
+            # stayers and refinancers
+            if sim.h[t,i] > 0 and sim.h[t,i] == sim.h[t-1,i]: 
+                move = 0
+                rent = 0
+                u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h[t,i],move,rent,t,par)
+            #  buyers
+            elif sim.h[t,i] > 0 and sim.h[t,i] != sim.h[t-1,i]:
+                move = 1
+                rent = 0
+                u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h[t,i],move,rent,t,par)
+            # renters
+            elif sim.h[t,i] == 0:
+                move = 0
+                rent = 1
+                u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h_tilde[t,i],move,rent,t,par)
+
 @njit
 def find_nearest(array,value):
-    
+    """ lookup index of nearest point on the grid for given array and value """
     # end points
     n = len(array)
     if (value < array[0]):
