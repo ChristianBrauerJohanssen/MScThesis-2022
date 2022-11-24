@@ -12,7 +12,8 @@ def income_aftertax(w,d,Tda,par):
     # unpack input
     tau_y0 = par.tau_y0
     tau_y1 = par.tau_y1
-    tau_r = par.tau_r 
+    tau_r0 = par.tau_r0 
+    tau_r1 = par.tau_r1
     rd_bar = par.rd_bar
     
     # find relevant interest rate 
@@ -23,7 +24,7 @@ def income_aftertax(w,d,Tda,par):
     
     # compute after tax income
     y = w
-    ird = tau_r*np.fmin(r*d,rd_bar)
+    ird = tau_r0*np.fmin(r*d,rd_bar) + tau_r1*np.fmax(0,r*d-rd_bar)
     ytilde = (1-tau_y0)*(y-ird)**(1-tau_y1) + ird
 
     return ytilde
@@ -50,9 +51,9 @@ def Td_func(t,par):
         Td = par.T-1
     return Td
 
-@njit(fastmath=True)
-def alfahage(n,r):
-     return ((1+r)**n-1)/(r*(1+r)**n)
+#@njit(fastmath=True)
+#def alfahage(n,r):
+#     return ((1+r)**n-1)/(r*(1+r)**n)
 
 @njit(fastmath=True)
 def mpmt(d,t,Td,Tda,par):
@@ -60,13 +61,11 @@ def mpmt(d,t,Td,Tda,par):
     args:
         d (float)       - outstanding mortgage balance
         Td (int)        - time of last mortgage term
-        Tda (int)       _ remaining periods of deferred amortisation
+        Tda (int)       - remaining periods of deferred amortisation
+        par             - model parameters
     
     returns:
         tot_pmt         - total mortgage payment in period t
-        ir_pmt          - interest payment in period t
-        pr_pmt          - reduction in principal in period t
-        pr_rem          - remaining principal
     """
     #derive the mortgage schedule
     if t >= Td:

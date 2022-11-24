@@ -25,12 +25,16 @@ def lifecycle(model,quantiles:bool=False):
     par = model.par
     sim = model.sim
 
+    # b. compute additional output
+    #net_wealth = sim.a + par.q*sim.h_prime - sim.d_prime
+
     # b. figure
     fig = plt.figure(figsize=(12,12))
 
     simvarlist = [('y','$y_t$ - mean pre-tax income'),
+                  ('h','$h_{t-1}$ - mean house size beg.'),
                   ('h_prime','$h_t$ - mean house size'),
-                  #('d','$d_t$ - mean debt beg.'),
+                  ('d','$d_t$ - mean debt beg.'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
                   ('m','$m_t$ - mean cash on hand beg.'),
                   ('c','$c_t$ - mean consumption '),
@@ -75,6 +79,7 @@ def lifecycle(model,quantiles:bool=False):
         ax.grid(True)
         if i in [len(simvarlist)-i-1 for i in range(cols)]:
             ax.set_xlabel('age')
+
     plt.tight_layout()
     plt.savefig('output/life_cycle_baseline.png')
     plt.show()

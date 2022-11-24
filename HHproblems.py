@@ -36,34 +36,28 @@ def last_period_v_bar_q(t,sol,par):
     # b. find terminal period
     Td_max = mt.Td_func(t,par)
     Td_len = np.fmin(t+2,par.Td_shape)
-    # c. compute post decision given by bequest 
+    # c. compute post decision given by bequest
     for i_Tda in prange(2): 
         for i_Td in prange(Td_len):
             for i_h in range(par.Nh+1):
-                
                 # i. own or rent?
                 if i_h == 0: 
                     h = 0
                 else: 
                     h = par.grid_h[i_h-1]
-
                 # ii. scale mortgage grid
-                d_high = par.q*h
+                d_high = par.q*h #np.fmin(par.omega_ltv*par.q*h,par.omega_dti*y)
                 grid_d = np.linspace(0,d_high,par.Nd)
-                    
                 for i_d in range(par.Nd):    
                     for i_a in range(par.Na):
-                        
                         # o. mortgage? 
-                        if Td_max < t: 
+                        if Td_max < t-1: 
                             d = 0
                         else: 
                             d = grid_d[i_d]
-
                         # oo. remaining post decision states
                         Tda = i_Tda
                         a = par.grid_a[i_a]
-
                         # ooo. compute negative inverse post decision function
                         ab = trans.ab_plus_func(a,d,Tda,h,par)
                         inv_v_bar[i_h,i_d,i_Td,i_Tda,:,i_a] = -1/utility.bequest_func(ab,par)
@@ -137,9 +131,10 @@ def postdecision_compute_v_bar_q(t,sol,par):
 
                             # iv. loop over shocks and then end-of-period assets
                             for i_shock in range(par.Nw):                
-                                # o. next-period income 
+                                # o. next-period income
+                                p = par.grid_w[i_w] 
                                 p_plus = par.grid_w[i_shock]
-                                y_plus = trans.p_to_y_func(i_w,p_plus,t+1,par)
+                                y_plus = trans.p_to_y_func(i_y=i_w,p=p_plus,p_lag=p,t=t+1,par=par)
                                 p_plus_weight = par.w_trans[i_w,i_shock]
 
                                 # oo. compute weight 
@@ -205,7 +200,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                                         discrete = np.array([inv_v_buy_plus[i_a],
                                                             inv_v_rent_plus[i_a,int(rent_choice[i_a])]])
                                         choice = np.argmax(discrete) # 0 = buy, 1 = rent
-                                        #assert discrete[choice] > 0, print(f'zero inverse value function best choice at {i_h, i_dp, i_Td, i_Tda, i_w, i_a}. The array is {discrete}')  
+                                        #assert discrete[choice] > 0, print(f'zero inverse value function best choice at {i_h, i_dp, i_Td, i_Tda, i_w, i_a, y_plus}. The array is {discrete}')  
                                         if choice == 0:     
                                             v_plus = -1/inv_v_buy_plus[i_a]
                                             marg_u_plus = 1/inv_marg_u_buy_plus[i_a]
@@ -219,7 +214,7 @@ def postdecision_compute_v_bar_q(t,sol,par):
                                                             inv_v_rent_plus[i_a,int(rent_choice[i_a])]])
                                         choice = np.argmax(discrete) # 0 = stay, 1 = ref, 2 = buy, 3 = rent
                                         
-                                        #assert discrete[choice] > 0, print(f'zero inverse value function best choice at {i_h, i_dp, i_Td, i_Tda, i_y, i_a}. The array is {discrete}')  
+                                        #assert discrete[choice] > 0, print(f'zero inverse value function best choice at {i_h, i_dp, i_Td, i_Tda, i_w, i_a, y_plus}. The array is {discrete}')  
                                         if discrete[choice] <= 0:
                                             inv_v_def_plus,inv_marg_u_def_plus = force_default(y_plus,i_shock,t,sol,par) 
                                             v_plus = -1/inv_v_def_plus
@@ -248,6 +243,79 @@ def postdecision_compute_v_bar_q(t,sol,par):
 ####################
 # 4. Stay problem  # 
 ####################
+@njit(parallel=True)
+def solve_stay_new(t,sol,par): # do not use, tried adding non-separable preferences
+    """ solve bellman equation for stayers using negm """
+    # a. unpack input and endogenous arrays
+    c_endo = sol.c_endo_stay[t]
+    m_endo = sol.m_endo_stay[t]
+    inv_v_bar = sol.inv_v_bar[t]
+    q_stay = sol.q[t]
+    
+    alpha = par.alpha
+    phi = par.phi
+    rho = par.rho
+    n = par.n[t]
+
+    # b. unpack output
+    inv_v_stay = sol.inv_v_stay[t]
+    inv_marg_u_stay = sol.inv_marg_u_stay[t]
+    c_stay = sol.c_stay[t]
+    
+    # c. restrict loop over terminal periods
+    Td_len = np.fmin(t+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
+    count = 0
+    # d. loop through states
+    for i_w in prange(par.Nw):
+        for i_d in prange(par.Nd): 
+            for i_Tda in range(np.fmin(par.Tda_bar,par.T-t+1)):
+                for i_Td in range(Td_len):
+                    for i_h in range(par.Nh):
+
+                        # i. temporary container and states
+                        v_stay_vec = np.zeros(par.Nm)
+                        h = par.grid_h[i_h]
+
+                        for i_a in range(par.Na):
+                            # o. post decision assets
+                            a = par.grid_a[i_a]
+ 
+                            # oo. back out optimal consumption
+                            s_power = h**((1.0-alpha)*(1.0-rho))
+                            c_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a] = (q_stay[i_h,i_d,i_Td,i_Tda,i_w,i_a]/(alpha*n*s_power))**(1.0/(alpha*(1.0-rho)-1.0))
+                            m_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a] = a + c_endo[i_h,i_d,i_Td,i_Tda,i_w,i_a]
+                            
+                        # ii. interpolate from post decision space to beginning of period states
+                        move = 0
+                        rent = 0
+                        negm_upperenvelope(
+                            par.grid_a,
+                            m_endo[i_h,i_d,i_Td,i_Tda,i_w,:],
+                            c_endo[i_h,i_d,i_Td,i_Tda,i_w,:],
+                            inv_v_bar[i_h,i_d,i_Td,i_Tda,i_w,:],
+                            par.grid_m,
+                            c_stay[i_h,i_d,i_Td,i_Tda,i_w,:],
+                            v_stay_vec,
+                            h,move,rent,t,par)
+                        
+                        count += 1
+                        #print('iteration')
+                        #print(count)
+                        #print('v_stay vec:')
+                        #print(v_stay_vec)
+ 
+                        # iii. optimal value func and marg u - (negative) inverse 
+                        for i_m in range(par.Nm): 
+                            inv_v_stay[i_h,i_d,i_Td,i_Tda,i_w,i_m] = -1/v_stay_vec[i_m]
+                            inv_marg_u_stay[i_h,i_d,i_Td,i_Tda,i_w,i_m] = 1/utility.marg_func_nopar(c_stay[i_h,i_d,i_Td,i_Tda,i_w,i_m],
+                                                                                                    h,
+                                                                                                    rent,
+                                                                                                    rho,
+                                                                                                    alpha,
+                                                                                                    phi,
+                                                                                                    n)
+
+
 @njit(parallel=True)
 def solve_stay(t,sol,par): 
     """ solve bellman equation for stayers using negm """
@@ -347,12 +415,14 @@ def solve_ref_fast(t,sol,par):
     
     nu = par.nu
     rho = par.rho
+    alpha = par.alpha
+    phi = par.phi
     n = par.n[t]
 
     # c. loop over outer states
     for i_w in prange(par.Nw):
         p = par.grid_w[i_w]
-        y = trans.p_to_y_func(i_w,p,t,par)
+        y = trans.p_to_y_func(i_y=i_w,p=p,p_lag=p,t=t,par=par)
         for i_h in prange(par.Nh):
             h = par.grid_h[i_h]
 
@@ -403,10 +473,16 @@ def solve_ref_fast(t,sol,par):
                     continue
                 
                 ## now interpolate on stayer consumption and value function
+                rent = 0
                 c_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,c_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
-
+                                                                        #h,
+                                                                        #rent,
+                                                                        #rho,
+                                                                        #alpha,
+                                                                        #phi,
+                                                                        #n)
 
 ####################
 # 6. Buy problem   # 
@@ -453,7 +529,7 @@ def solve_buy_fast(t,sol,par):
     # c. loop over outer states
     for i_w in prange(par.Nw):
         p = par.grid_w[i_w]
-        y = trans.p_to_y_func(i_w,p,t,par)
+        y = trans.p_to_y_func(i_y=i_w,p=p,p_lag=p,t=t,par=par)
         for i_x in prange(par.Nx):               
             m_gross = par.grid_x[i_x]
 
@@ -509,14 +585,82 @@ def solve_buy_fast(t,sol,par):
                     continue
                 
                 ## now interpolate on stayer consumption and value function
+                rent = 0
                 c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_v_buy[i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
-
+                                                                    #h_buy[i_w,i_x],
+                                                                    #rent,
+                                                                    #rho,
+                                                                    #par.alpha,
+                                                                    #par.phi,
+                                                                    #n)
 
 ####################
 # 7. Rent problem   # 
 ####################
+@njit
+def solve_rent_new(t,sol,par): # do not use, tried adding non-separable preferences
+    """ solve bellman equation for renters using negm """
+    # unpack input and endogenous arrays
+    c_endo = sol.c_endo_rent[t]
+    m_endo = sol.m_endo_rent[t]
+    inv_v_bar = sol.inv_v_bar[t]
+    q_rent = sol.q[t,0,0,0,0]
+    
+    alpha = par.alpha
+    rho = par.rho
+    phi = par.phi
+    n = par.n[t]
+    
+
+    # unpack solution arrays
+    inv_v_rent = sol.inv_v_rent[t]
+    inv_marg_u_rent = sol.inv_marg_u_rent[t]
+    c_rent = sol.c_rent[t]
+    
+    for i_w in prange(par.Nw):
+        for i_ht in range(par.Nhtilde):
+            
+            # i. temporary container and states
+            v_rent_vec = np.zeros(par.Nm)
+            htilde = par.grid_htilde[i_ht]   
+
+            for i_a in range(par.Na):
+
+                # o. post decision assets
+                a = par.grid_a[i_a]
+                
+                # oo. back out optimal consumption and net cash-on-hand
+                s_power = phi*htilde**((1.0-alpha)*(1.0-rho))
+                c_endo[i_ht,i_w,i_a] = (q_rent[i_w,i_a]/(alpha*n*s_power))**(1.0/(alpha*(1.0-rho)-1.0))
+                m_endo[i_ht,i_w,i_a] = a + c_endo[i_ht,i_w,i_a] #+ par.q_r*htilde
+
+            # ii. interpolate from post decision space to beginning of period states
+            move = 0    # no costs of moving when renting?
+            rent = 1
+            negm_upperenvelope(
+                par.grid_a,
+                m_endo[i_ht,i_w,:],
+                c_endo[i_ht,i_w,:],
+                inv_v_bar[0,0,0,0,i_w,:],
+                par.grid_m,
+                c_rent[i_ht,i_w,:],
+                v_rent_vec,
+                htilde,move,rent,t,par)
+            sol.htilde[t,i_ht,i_w,:] = htilde 
+
+            # iii. optimal value func and marg u - (negative) inverse 
+            for i_m in range(par.Nm): 
+                inv_v_rent[i_ht,i_w,i_m] = -1/v_rent_vec[i_m]
+                inv_marg_u_rent[i_ht,i_w,i_m] = 1/utility.marg_func_nopar(c_rent[i_ht,i_w,i_m],
+                                                                          htilde,
+                                                                          rent,
+                                                                          par.rho,
+                                                                          par.alpha,
+                                                                          par.phi,
+                                                                          n)
+
 @njit
 def solve_rent(t,sol,par):
     """ solve bellman equation for renters using negm """
@@ -568,6 +712,7 @@ def solve_rent(t,sol,par):
                 inv_v_rent[i_ht,i_w,i_m] = -1/v_rent_vec[i_m]
                 inv_marg_u_rent[i_ht,i_w,i_m] = 1/utility.marg_func_nopar(c_rent[i_ht,i_w,i_m],
                                                                           par.nu,par.rho,par.n[t])
+
 
 ####################
 # 8.   Default     # 

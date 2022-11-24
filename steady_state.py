@@ -59,6 +59,8 @@ def bequest_loop(model,bequest_guess,step_size=0.5):
     else:
         print(f'convergence achieved in {iteration} simulations, mean bequest = {bequest_guess:.6f}')
     
+    ss.bequest_guess = bequest_guess
+    
     par = model.par
     par.do_print = True
     
@@ -85,7 +87,7 @@ def obj_ss(H_ss_guess,model,do_print=False):
     model.solve()
     model.simulate()
 
-    ss.H_hh = np.sum(sim.h)
+    ss.H_hh = np.sum(sim.h)+np.sum
 
     if do_print: print(f'implied {ss.H_hh = :.4f}')
 

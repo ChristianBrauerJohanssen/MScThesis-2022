@@ -8,7 +8,7 @@ from numba import njit, prange
 
 # b. NumEconCph packages
 from consav import linear_interp # for linear interpolation
-from consav.markov import choice # for lookup in transition matrix
+from consav.markov import choice, log_rouwenhorst # for lookup in transition matrix
 
 # c. local modules
 import trans
@@ -22,39 +22,41 @@ import mt
 @njit(parallel=True)
 def lifecycle(sim,sol,par):
     """ simulate full life-cycle given prices and bequest distribution """
+    for t in range(par.T):
+        # unpack state containers
+        h = sim.h
+        d = sim.d
+        Td = sim.Td 
+        Tda = sim.Tda
+        p = sim.p
+        y = sim.y
+        m = sim.m
 
-    # unpack state containers
-    h = sim.h
-    d = sim.d
-    Td = sim.Td 
-    Tda = sim.Tda
-    p = sim.p
-    y = sim.y
-    m = sim.m
+        # unpack choice containers
+        h_prime = sim.h_prime
+        h_tilde = sim.h_tilde
+        d_prime = sim.d_prime
+        Td_prime = sim.Td_prime 
+        Tda_prime = sim.Tda_prime 
+        c = sim.c
+        a = sim.a 
+        discrete = sim.discrete # living situation
 
-    # unpack choice containers
-    h_prime = sim.h_prime
-    h_tilde = sim.h_tilde
-    d_prime = sim.d_prime
-    Td_prime = sim.Td_prime 
-    Tda_prime = sim.Tda_prime 
-    c = sim.c
-    a = sim.a 
-    discrete = sim.discrete # living situation
+        # unpack indexing
+        i_y = sim.i_y
 
     # simulate forward
-    for t in range(par.T):
         for i in prange(par.simN):
             
             # a. shock realisation
             if t == 0:    
-                p_y = sim.p_y_ini[i]
-                i_y_lag = choice(p_y,par.w_ergodic_cumsum)
+                p_y_ini = sim.p_y_ini[i]
+                i_y_lag = choice(p_y_ini,par.p_ini_ergodic_cumsum)
             else:
                 i_y_lag = sim.i_y[t-1,i]
             
             p_y = sim.p_y[t,i]
-            i_y_ = sim.i_y[t,i] = choice(p_y,par.w_trans_cumsum[i_y_lag,:])
+            i_y_ = i_y[t,i] = choice(p_y,par.w_trans_cumsum[i_y_lag,:])
 
             # b. beginning of period states and income
             if t == 0:
@@ -63,7 +65,7 @@ def lifecycle(sim,sol,par):
                 Td[t,i] = 0
                 Tda[t,i] = 0                
                 p[t,i] = par.grid_w[i_y_]
-                y[t,i] = trans.p_to_y_func(i_y_,p[t,i],t,par)
+                y[t,i] = trans.p_to_y_func(i_y=i_y_,p=p[t,i],p_lag=0,t=t,par=par)
                 m[t,i] = sim.a0[i] + y[t,i]
                 
             else:
@@ -73,7 +75,7 @@ def lifecycle(sim,sol,par):
                 Td[t,i] = Td_prime[t-1,i]
                 Tda[t,i] = trans.Tda_plus_func(Tda_prime[t-1,i]) 
                 p[t,i] = par.grid_w[i_y_]
-                y[t,i] = trans.p_to_y_func(i_y_,p[t,i],t,par)
+                y[t,i] = trans.p_to_y_func(i_y=i_y_,p=p[t,i],p_lag=p[t-1,i],t=t,par=par)
                 m[t,i] = trans.m_plus_func(a[t-1,i],y[t,i],d[t-1,i],Td[t-1,i],Tda[t-1,i],par,t)
 
             # c. scale mortgage grid
@@ -131,7 +133,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
             ## mortgage plan choice
-            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_ref]
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
             Td_prime[0] = mt.Td_func(t,par)
             Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
 
@@ -141,7 +143,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td
             ## ensure feasibility 
             loan = int(d_prime[0]>0)
             m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
-            if c[0] > m_net_buy : 
+            if c[0] > m_net_buy: 
                 c[0] = m_net_buy
                 a[0] = 0.0
             else:
@@ -225,7 +227,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
             ## mortgage plan choice
-            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_ref]
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
             Td_prime[0] = mt.Td_func(t,par)
             Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
 

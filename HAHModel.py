@@ -28,7 +28,8 @@ import steady_state
 import HHproblems as hhp
 import trans
 import utility
-import simulate 
+import simulate
+import steady_state 
 import figs
 
 ##########################
@@ -69,7 +70,7 @@ class HAHModelClass(EconModelClass):
         par.zeta = 0.8                                  # disutility of default
         
         # b. demographics and life cycle profile
-        par.median_income = 350_000                     # for normalisation
+        par.median_income = 670_000                     # for normalisation
         par.Tmin = 25                                   # age when entering the model
         par.T = 80 - par.Tmin                           # age of death
         par.Tr = 65 - par.Tmin                          # retirement age
@@ -78,41 +79,45 @@ class HAHModelClass(EconModelClass):
 
         # c. income process
         par.rho_p = 0.96                                # AR(1) parameter
-        par.sigma_psi = 0.10                            # std. of persistent shock
+        par.sigma_psi = 0.20                            # std. of persistent shock
+        par.sigma_psi_ini = 0.52                        # std. of initial income shock
         par.Np = 7                                      # number of permanent income states
 
         par.sigma_xi = 0.0                              # std. dev. of transitory shock
         par.Nxi = 1                                     # quadrature nodes for transitory shock
 
         par.pi = 0.025                                  # unemployment probability
-        par.b = 0.2                                     # unemployment benefits 
+        par.b = 0.2                                     # unemployment benefits
+
+        par.pension = 1.0                               # scaling of pension income 
 
         # d. interest rates and financial regulation
-        par.r = 0.01                                    # return on liquid assets
-        par.r_m = 0.03                                  # amortising mortgage interest rate     
-        par.r_da = 0.045                                # deferred amortisation mortgage rate
+        par.r = 0.02                                    # return on liquid assets
+        par.r_m = par.r+0.0056                          # amortising mortgage interest rate     
+        par.r_da = par.r_m+0.0008                       # deferred amortisation mortgage rate
         par.omega_ltv = 0.8                             # loan-to-value ratio  
         par.omega_dti = 5                               # debt-to-income ratio
-        par.Cp_ref = 0.05                               # proportional refinancing cost
-        par.Cf_ref = 8250/par.median_income             # fixed refinancing cost NB: dummy value
+        par.Cp_ref = 0.017                              # proportional refinancing cost JEJA
+        par.Cf_ref = 8250/par.median_income             # fixed refinancing cost
         par.Td_bar = 30                                 # maximum regulatory mortgage term length
         par.Td_shape = 27                               # sample space for mortgage terminal periods
         par.Tda_bar = 11                                # maximum terms with deferred amortisation +1
         
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
-        par.gamma = 0.008                               # per rental unit operating cost
-        par.C_buy = 0.06                                # proportional house sale cost
+        par.gamma = 0.014                               # per rental unit operating cost
+        par.C_buy = 0.00                                # proportional house sale cost
         par.C_sell = 0.04                               # proportional house purchase cost
         #par.sigma_epsilon = 0.04                       # std. dev. of housing shock
         #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
-        par.tau_y0 = 0.19                               # income tax function parameter 1    
+        par.tau_y0 = 0.19 #0.256+0.08                         # income tax function parameter 1    
         par.tau_y1 = 0.18                               # income tax function parameter 2
         par.tau_h0 = 0.0092                             # bottom-bracket property tax rate
         par.tau_h1 = 0.03                               # top-bracket property tax rate
-        par.tau_r = 0.30                                # tax value of interest rate expenses
+        par.tau_r0 = 0.336                              # low bracket tax value of interest rate expenses
+        par.tau_r1 = 0.256                              # high bracket tax value of interet rate expenses
         par.qh_bar = 3_040_000/par.median_income        # top-bracket property tax threshold
         par.rd_bar = 75_000/par.median_income           # high tax value of interest deduction threshold
 
@@ -133,12 +138,12 @@ class HAHModelClass(EconModelClass):
         par.Na = 10                                     # points in assets grid
         par.m_max = 15.0                                # maximum cash-on-hand
         par.x_max = 15.0                                # maximum gross resources
-        par.x_min = -5.0                                # minimum gross resources (before refinancing)
+        par.x_min = -6.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max+1.0                       # maximum assets
 
         # i. simulation
         par.mu_a0 = 1.0                                 # mean initial assets
-        par.sigma_a0 = 1.0                              # standard dev. of initial assets
+        par.sigma_a0 = 0.5                              # standard dev. of initial assets
         
         par.simN = 100_000                              # number of simulated agents
         par.sim_seed = 1995                             # seed for random number generator
@@ -180,6 +185,7 @@ class HAHModelClass(EconModelClass):
             # i. persistent shock/permanent income states
         _out = log_rouwenhorst(par.rho_p,par.sigma_psi,par.Np)
         par.p_grid,par.p_trans,par.p_ergodic,par.p_trans_cumsum,par.p_ergodic_cumsum = _out
+        _,_,_,_,par.p_ini_ergodic_cumsum = log_rouwenhorst(par.rho_p,par.sigma_psi_ini,par.Np) 
         
             # ii. transitory income shock
         if par.sigma_xi > 0 and par.Nxi > 1:
@@ -209,7 +215,7 @@ class HAHModelClass(EconModelClass):
         par.w_trans_cumsum = np.cumsum(par.w_trans,axis=1)
         par.w_ergodic = find_ergodic(par.w_trans)
         par.w_ergodic_cumsum = np.cumsum(par.w_ergodic)
-        par.w_trans_T = par.w_trans.T
+        #par.w_trans_T = par.w_trans.T
 
         # d. set seed
         np.random.seed(par.sim_seed)
@@ -505,8 +511,9 @@ class HAHModelClass(EconModelClass):
         sim.p_y_ini = np.zeros(par.simN)
         sim.p_ini = np.zeros(par.simN)
         sim.p_y = np.zeros(sim_shape)
-        sim.psi = np.zeros(sim_shape) 
         sim.i_y = np.zeros(sim_shape,dtype=np.int_)
+
+        #sim.psi = np.zeros(sim_shape) 
         #sim.xi = np.zeros(sim_shape)
         #sim.z = np.zeros(par.T)    # economy wide shock
 
@@ -563,7 +570,20 @@ class HAHModelClass(EconModelClass):
     ################
     #    GenEq     #
     ################
-    bequest_loop = steady_state.bequest_loop
+    
+    def find_steady_state(self,ab_guess,H_guess,H_min,H_max):
+        
+        sim = self.sim
+        sol = self.sol
+        par = self.par
+        
+        # find stable bequest level
+        steady_state.bequest_loop(self,ab_guess)
+
+        # check housing market clearing
+        steady_state.find_ss(self,do_print=par.do_print,)
+
+    
     #prepare_hh_ss = steady_state.prepare_hh_ss
     find_ss = steady_state.find_ss
 
