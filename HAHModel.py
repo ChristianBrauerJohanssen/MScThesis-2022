@@ -96,7 +96,8 @@ class HAHModelClass(EconModelClass):
         par.r_m = par.r+0.0056                          # amortising mortgage interest rate     
         par.r_da = par.r_m+0.0008                       # deferred amortisation mortgage rate
         par.omega_ltv = 0.8                             # loan-to-value ratio  
-        par.omega_dti = 5                               # debt-to-income ratio
+        par.omega_dti = 5*np.ones(par.T)                # debt-to-income ratio working life
+        par.omega_dti[par.Tr:] = 2.5                    # debt-to-income ratio retired
         par.Cp_ref = 0.017                              # proportional refinancing cost JEJA
         par.Cf_ref = 8250/par.median_income             # fixed refinancing cost
         par.Td_bar = 30                                 # maximum regulatory mortgage term length
@@ -306,11 +307,11 @@ class HAHModelClass(EconModelClass):
         sol.inv_marg_u_stay = np.zeros(own_shape)
 
         # c. refinance
-        sol.c_ref = np.zeros(own_shape)
-        sol.d_prime_ref = np.zeros(own_shape)
-        sol.Tda_prime_ref = np.zeros(own_shape)   
-        sol.inv_v_ref = np.zeros(own_shape)
-        sol.inv_marg_u_ref = np.zeros(own_shape)
+        #sol.c_ref = np.zeros(own_shape)
+        #sol.d_prime_ref = np.zeros(own_shape)
+        #sol.Tda_prime_ref = np.zeros(own_shape)   
+        #sol.inv_v_ref = np.zeros(own_shape)
+        #sol.inv_marg_u_ref = np.zeros(own_shape)
 
         sol.c_ref_fast = np.zeros(ref_shape_fast)
         sol.d_prime_ref_fast = np.zeros(ref_shape_fast)
@@ -319,12 +320,12 @@ class HAHModelClass(EconModelClass):
         sol.inv_marg_u_ref_fast = np.zeros(ref_shape_fast)
 
         # d. buy
-        sol.c_buy = np.zeros(buy_shape)
-        sol.h_buy = np.zeros(buy_shape)
-        sol.d_prime_buy = np.zeros(buy_shape)
-        sol.Tda_prime_buy = np.zeros(buy_shape)
-        sol.inv_v_buy = np.zeros(buy_shape)
-        sol.inv_marg_u_buy = np.zeros(buy_shape)
+        #sol.c_buy = np.zeros(buy_shape)
+        #sol.h_buy = np.zeros(buy_shape)
+        #sol.d_prime_buy = np.zeros(buy_shape)
+        #sol.Tda_prime_buy = np.zeros(buy_shape)
+        #sol.inv_v_buy = np.zeros(buy_shape)
+        #sol.inv_marg_u_buy = np.zeros(buy_shape)
 
         sol.c_buy_fast = np.zeros(buy_shape_fast)
         sol.h_buy_fast = np.zeros(buy_shape_fast)
@@ -343,8 +344,12 @@ class HAHModelClass(EconModelClass):
         sol.inv_v_bar = np.nan*np.zeros(post_shape)
         sol.q = np.nan*np.zeros(post_shape)
 
-        sol.c_endo_stay = np.nan*np.zeros(post_shape)
-        sol.m_endo_stay = np.nan*np.zeros(post_shape)
+        sol.inv_v_rent_plus = np.zeros((par.T,par.Nw,par.Nw,par.Na,par.Nhtilde))
+        sol.inv_marg_u_rent_plus = np.zeros((par.T,par.Nw,par.Nw,par.Na,par.Nhtilde))
+        sol.rent_choice = np.zeros((par.T,par.Nw,par.Nw,par.Na)) 
+
+        sol.c_endo_stay = np.nan*np.zeros(own_shape)
+        sol.m_endo_stay = np.nan*np.zeros(own_shape)
         sol.c_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na)) 
         sol.m_endo_rent = np.nan*np.zeros((par.T,par.Nhtilde,par.Nw,par.Na))
 
@@ -388,7 +393,9 @@ class HAHModelClass(EconModelClass):
 
                 else: 
                     tic_w = time.time()
-                    hhp.postdecision_compute_v_bar_q(t,sol,par)                
+                    #hhp.postdecision_compute_v_bar_q(t,sol,par)
+                    hhp.postdecision_compute_v_bar_q_rent(t,sol,par)
+                    hhp.postdecision_compute_v_bar_q_own(t,sol,par)                
                     toc_w = time.time()
                     par.time_vbarq[t] = toc_w-tic_w
                     if par.do_print:
@@ -437,7 +444,7 @@ class HAHModelClass(EconModelClass):
                 if do_assert:
                     assert np.all((sol.c_buy_fast[t] >= 0) & (np.isnan(sol.c_buy_fast[t]) == False)), t
                     assert np.all((sol.d_prime_buy_fast[t] >= 0) &(np.isnan(sol.d_prime_buy_fast[t]) == False)), t
-                    assert np.all((sol.inv_v_buy[t] >= 0) & (np.isnan(sol.inv_v_buy[t]) == False)), t
+                    assert np.all((sol.inv_v_buy_fast[t] >= 0) & (np.isnan(sol.inv_v_buy_fast[t]) == False)), t
                 
                 # e. solve and time renter problem
                 tic_rent = time.time()
@@ -591,16 +598,17 @@ class HAHModelClass(EconModelClass):
     #    Figures   #
     ################
 
-#   def decision_functions(self):
-#       figs.decision_functions(self)
-#
 #   def egm(self):        
 #       figs.egm(self)
-#
+
     def fig_lifecycle(self,quantiles=False):        
         figs.lifecycle(self,quantiles=quantiles)
     def fig_homeownership(self):
         figs.homeownership(self)
+    def fig_decision_functions(self):
+        figs.decision_functions(self)
+    
+    
     #def mpc_over_cash_on_hand(self):
     #    figs.mpc_over_cash_on_hand(self)
     #def mpc_over_lifecycle(self):

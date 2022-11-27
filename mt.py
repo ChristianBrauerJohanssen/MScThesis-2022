@@ -4,7 +4,7 @@
 
 # imports
 import numpy as np
-from numba import jit, njit, prange
+from numba import njit, prange
 
 # income and property tax functions
 @njit(fastmath=True)

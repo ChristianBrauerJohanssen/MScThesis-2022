@@ -88,7 +88,9 @@ def lifecycle(sim,sol,par):
                            c[t,i:],a[t,i:],discrete[t,i:],sol,par)
             
 @njit            
-def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,c,a,discrete,sol,par):
+def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
+                   h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,
+                   c,a,discrete,sol,par):
 
     # a. compute gross cash-on-hand
     m_gross_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
@@ -124,7 +126,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td
     # d. find behaviour given discrete choice
     if h == 0:
         discrete_choice = np.amax(np.array([inv_v_buy,inv_v_rent]))
-        # o. buy new house?
+        # i. buy new house?
         if discrete_choice == inv_v_buy: 
             
             discrete[0] = 2
@@ -149,7 +151,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,h_prime,d_prime,grid_d_prime,Td
             else:
                 a[0] = m_net_buy - c[0]
         
-        # oo. rent 
+        # ii. rent 
         elif discrete_choice == inv_v_rent:
             ## discrete choices (all fixed)
             discrete[0] = 3

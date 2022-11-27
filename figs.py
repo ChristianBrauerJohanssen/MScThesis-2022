@@ -1,14 +1,25 @@
-# imports
+###########
+# imports #
+###########
+
+# a. standard packages
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+import ipywidgets as widgets
 import seaborn as sns
 sns.set_style("whitegrid")
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 colors = prop_cycle.by_key()["color"]
 
+# b. NumEconCPH packages
 from consav.grids import equilogspace
 from consav import linear_interp
+
+# c. local modules
+import utility
 
 
 #############
@@ -138,6 +149,261 @@ def homeownership(model):
     plt.tight_layout()
     plt.savefig('output/homeownership_baseline.png')
     plt.show()
+
+
+######################
+# decision functions #
+######################
+
+def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a,name):
+
+    #if name == 'discrete':
+    #    _discrete(model,t,i_p)
+    if name == 'stay':
+        _stay(model,t,i_h,i_d,i_Td,i_Tda,i_w)
+    elif name == 'refinance':
+        _ref(model,t,i_h,i_w)
+    elif name == 'buy':
+        _buy(model,t,i_w)
+    #elif name == 'rent':
+    #    _rent(model,t,i_w)
+    elif name == 'post_decision': #and t <= model.par.T-2:
+        _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a)        
+
+def decision_functions(model):
+    widgets.interact(_decision_functions,
+        model=widgets.fixed(model),
+        t=widgets.Dropdown(description='t', 
+            options=list(range(model.par.T)), value=0),
+        i_h=widgets.Dropdown(description='ih',
+            options=list(range(model.par.Nh)), value=0),
+        i_d=widgets.Dropdown(description='i_d',
+            options=list(range(model.par.Nd)), value=0),
+        i_Td=widgets.Dropdown(description='i_Td',
+            options=list(range(model.par.Td_shape)), value=0),
+        i_Tda=widgets.Dropdown(description='i_Tda',
+            options=list(range(model.par.Tda_bar)), value=0),      
+        i_w=widgets.Dropdown(description='iw', 
+            options=list(range(model.par.Nw)), value=np.int(model.par.Nw/2)),
+        i_a=widgets.Dropdown(description='ia', 
+            options=list(range(model.par.Na)), value=np.int(model.par.Na/2)),    
+        name=widgets.Dropdown(description='name', 
+            options=['stay','refinance','buy','rent','post_decision'], value='stay')
+        )
+
+def _discrete(model,t,i_p):
+
+    par = model.par
+
+    # a. interpolation
+    n, m = np.meshgrid(par.grid_n,par.grid_m,indexing='ij')
+    x = m + (1-par.tau)*n
+    
+    inv_v_adj = np.zeros(x.size)
+    linear_interp.interp_1d_vec(par.grid_x,model.sol.inv_v_adj[t,i_p,:,],x.ravel(),inv_v_adj)
+    inv_v_adj = inv_v_adj.reshape(x.shape)
+
+    # f. best discrete choice
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_subplot(1,1,1)
+
+    I = inv_v_adj > model.sol.inv_v_keep[t,i_p,:,:]
+
+    x = m[I].ravel()
+    y = n[I].ravel()
+    ax.scatter(x,y,s=2,label='adjust')
+    
+    x = m[~I].ravel()
+    y = n[~I].ravel()
+    ax.scatter(x,y,s=2,label='keep')
+        
+    ax.set_title(f'optimal discrete choice ($t = {t}$, $p = {par.grid_p[i_p]:.2f}$)',pad=10)
+
+    legend = ax.legend(loc='upper center', shadow=True)
+    frame = legend.get_frame()
+    frame.set_facecolor('0.90')
+
+    # g. details
+    ax.grid(True)
+    ax.set_xlabel('$m_t$')
+    ax.set_xlim([par.grid_m[0],par.grid_m[-1]])
+    ax.set_ylabel('$n_t$')
+    ax.set_ylim([par.grid_n[0],par.grid_n[-1]])
+    
+    plt.show()
+
+def _stay(model,t,i_h,i_d,i_Td,i_Tda,i_w):
+
+    # a. unpack
+    par = model.par
+    sol = model.sol
+
+    # b. figure
+    fig = plt.figure(figsize=(12,6))
+    ax_c = fig.add_subplot(1,2,1,)
+    ax_v = fig.add_subplot(1,2,2)
+
+    # c. plot consumption
+    ax_c.plot(par.grid_m,sol.c_stay[t,i_h,i_d,i_Td,i_Tda,i_w,:])
+    ax_c.set_title(f'$c^{{stay}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+
+    # d. plot value function
+    ax_v.plot(par.grid_m,sol.inv_v_stay[t,i_h,i_d,i_Td,i_Tda,i_w,:])
+    ax_v.set_title(f'neg. inverse $v^{{stay}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+
+    # e. details
+    for ax in [ax_c,ax_v]:
+
+        ax.grid(True)
+        ax.set_xlabel('$m_t$')
+        ax.set_xlim([par.grid_m[0],par.grid_m[-1]])
+    
+    plt.tight_layout()
+    plt.show()
+
+def _ref(model,t,i_h,i_w):
+
+    # a. unpack
+    par = model.par
+    sol = model.sol
+
+    # b. figure
+    fig = plt.figure(figsize=(12,12))
+    ax_c = fig.add_subplot(2,2,1)
+    ax_d = fig.add_subplot(2,2,2)
+    ax_Tda = fig.add_subplot(2,2,3)
+    ax_v = fig.add_subplot(2,2,4)
+    
+    # c. plot consumption
+    ax_c.plot(par.grid_x,sol.c_ref_fast[t,i_h,i_w,:],lw=2)
+    ax_c.set_title(f'$c^{{ref}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+
+    # d. plot mortgage balance
+    ax_d.plot(par.grid_x,sol.d_prime_ref_fast[t,i_h,i_w,:],lw=2)
+    ax_d.set_title(f'$d\prime^{{ref}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+
+    # e. plot DA periods
+    ax_Tda.plot(par.grid_x,sol.Tda_prime_ref_fast[t,i_h,i_w,:],lw=2)
+    ax_Tda.set_title(f'$Tda^{{ref}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+
+    # f. plot value function
+    ax_v.plot(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_w,:],lw=2)
+    ax_v.set_title(f'neg. inverse $v^{{ref}}$ ($t = {t}$, $w={par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+
+    # g. details
+    for ax in [ax_c,ax_d,ax_Tda,ax_v]:
+        ax.grid(True)
+        ax.set_xlabel('$m^{gross,ref}_t$')
+        ax.set_xlim([par.grid_x[0],par.grid_x[-1]])
+
+    plt.tight_layout()
+    plt.show()
+
+def _buy(model,t,i_w):
+
+    # a. unpack
+    par = model.par
+    sol = model.sol
+
+    # b. figure
+    fig = plt.figure(figsize=(12,12))
+    ax_c = fig.add_subplot(2,3,1)
+    ax_h = fig.add_subplot(2,3,2)
+    ax_d = fig.add_subplot(2,3,3)
+    ax_Tda = fig.add_subplot(2,3,4)
+    ax_v = fig.add_subplot(2,3,5)
+    
+    # c. plot consumption
+    ax_c.plot(par.grid_x,sol.c_buy_fast[t,i_w,:],lw=2)
+    ax_c.set_title(f'$c^{{buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # d. plot housing choice
+    ax_h.plot(par.grid_x,sol.h_buy_fast[t,i_w,:],lw=2)
+    ax_h.set_title(f'$h\prime^{{buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # e. plot mortgage balance
+    ax_d.plot(par.grid_x,sol.d_prime_buy_fast[t,i_w,:],lw=2)
+    ax_d.set_title(f'$d\prime^{{buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # f. plot DA periods
+    ax_Tda.plot(par.grid_x,sol.Tda_prime_buy_fast[t,i_w,:],lw=2)
+    ax_Tda.set_title(f'$Tda^{{buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # g. plot value function
+    ax_v.plot(par.grid_x,sol.inv_v_buy_fast[t,i_w,:],lw=2)
+    ax_v.set_title(f'neg. inverse $v^{{buy}}$ ($t = {t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # h. details
+    for ax in [ax_c,ax_h,ax_d,ax_Tda,ax_v]:
+        ax.grid(True)
+        ax.set_xlabel('$m^{gross,buy}_t$')
+        ax.set_xlim([par.grid_x[0],par.grid_x[-1]])
+
+    plt.tight_layout()
+    plt.show()
+
+def _rent(model,t,i_w):
+    
+    # a. unpack
+    par = model.par
+    sol = model.sol
+
+    # b. figure
+    fig = plt.figure(figsize=(12,12))
+    ax_c = fig.add_subplot(2,2,1,)
+    ax_ht = fig.add_subplot(2,2,2)
+    ax_v = fig.add_subplot(2,2,3)
+
+    # c. plot consumption
+    ax_c.plot(par.grid_m,sol.c_rent[t,i_w,:])
+    ax_c.set_title(f'$c^{{rent}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # d. plot rental decision
+
+
+    # e. plot value function
+    ax_v.plot(par.grid_m,sol.inv_v_rent[t,i_ht,i_w,:])
+    ax_v.set_title(f'neg. inverse $v^{{rent}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # f. details
+    for ax in [ax_c,ax_v]:
+
+        ax.grid(True)
+        ax.set_xlabel('$m_t$')
+        ax.set_xlim([par.grid_m[0],par.grid_m[-1]])
+    
+    plt.tight_layout()
+    plt.show()
+
+def _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a):
+
+    # a. unpack
+    par = model.par
+    sol = model.sol
+
+    # b. figure
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_subplot(1,1,1)
+
+    # c. plot post decision value function
+    ax.plot(par.grid_a,sol.inv_v_bar[t,i_h,i_d,i_Td,i_Tda,i_w,:])
+    ax.set_title(f'neg. inverse  $\ubar{{V}}$ ($t = {t}$, $p = {par.grid_w[i_w]:.2f}$)',pad=10)
+
+    # d. details
+    ax.grid(True)
+    ax.set_xlabel('$a_t$')
+    ax.set_xlim([par.grid_a[0],par.grid_a[-1]])
+    
+    plt.tight_layout
+    plt.show()
+
+
+#########################################################################################################
+
+
+###################
+# MPCs (old code) #
+###################
 
 def mpc_over_cash_on_hand(model):
     '''plot mpc as a function of cash-on-hand for given t'''
