@@ -211,7 +211,7 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                             # ii. initialise at zero
                             for i_a in range(par.Na):
                                 v_bar[i_a] = 0.0
-                                q[i_h,i_dp,i_Td,i_Tda,i_w,i_a] = 0.0 # +1 to not overwrite rent solution
+                                q[i_h,i_dp,i_Td,i_Tda,i_w,i_a] = 0.0 
 
                             # iii. loop over shocks and then end-of-period assets
                             for i_shock in range(par.Nw):                
@@ -533,12 +533,12 @@ def obj_ref(d_prime,m_gross,inv_v_stay_slice,grid_m,grid_d_prime,par):
     m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime 
 
     # c. value-of-choice
-    return linear_interp.interp_2d(grid_m,grid_d_prime,inv_v_stay_slice,m_net,d_prime)  # we are minimizing
+    return linear_interp.interp_2d(grid_d_prime,grid_m,inv_v_stay_slice,d_prime,m_net)  # we are minimizing
 
 @njit(parallel=True)
 def solve_ref_fast(t,sol,par):
     """solve bellman equation for refinancers using nvfi"""
-
+    count = 0
     # a. unpack output
     inv_v_ref = sol.inv_v_ref_fast[t]
     inv_marg_u_ref = sol.inv_marg_u_ref_fast[t]
@@ -583,6 +583,8 @@ def solve_ref_fast(t,sol,par):
                                                 inv_v_stay[i_h,:,i_Td_new,Tda,i_w,:],
                                                 par.grid_m,grid_d_prime,par)
                         
+                        #### enforce non-negativity here???? ####
+
                         # update optimal value and choices?
                         if inv_v_ref_new > inv_v_ref_best:
                             inv_v_ref_best = inv_v_ref_new
@@ -602,6 +604,7 @@ def solve_ref_fast(t,sol,par):
                 
                 ## enforce non-negativity constraint
                 if m_net <= 0:
+                    count += 1
                     d_prime_ref[i_h,i_w,i_x] = 0
                     Tda_prime_ref[i_h,i_w,i_x] = 0
                     c_ref[i_h,i_w,i_x] = 0
@@ -614,6 +617,8 @@ def solve_ref_fast(t,sol,par):
                 inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
 
+    #print('negative net cash-on-hand for refinancers ocurred the following amount of times:')
+    #print(count)
 
 ####################
 # 6. Buy problem   # 
@@ -631,7 +636,7 @@ def obj_buy_fast(d_prime,h_buy,m_gross,inv_v_stay_slice,grid_m,grid_d_prime,par)
     m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime-(1+par.C_buy)*par.q*h_buy
 
     # c. subtract pecuniary cost of moving
-    v_buy = -1/np.fmax(linear_interp.interp_2d(grid_m,grid_d_prime,inv_v_stay_slice,m_net,d_prime),par.tol)-par.kappa
+    v_buy = -1/np.fmax(linear_interp.interp_2d(grid_d_prime,grid_m,inv_v_stay_slice,d_prime,m_net),par.tol)-par.kappa
     
     # c. value-of-choice
     return -1/v_buy #linear_interp.interp_2d(grid_m,grid_d_prime,inv_v_stay_slice,m_net,d_prime)
@@ -639,7 +644,7 @@ def obj_buy_fast(d_prime,h_buy,m_gross,inv_v_stay_slice,grid_m,grid_d_prime,par)
 @njit(parallel=True)
 def solve_buy_fast(t,sol,par):
     """ solve bellman equation for buyers using nvfi"""
-    
+    count = 0
     # a. unpack output
     inv_v_buy = sol.inv_v_buy_fast[t]
     inv_marg_u_buy = sol.inv_marg_u_buy_fast[t]
@@ -708,6 +713,7 @@ def solve_buy_fast(t,sol,par):
     
                 ## enforce non-negativity constraint
                 if m_net <= 0:
+                    count += 1
                     d_prime_buy[i_w,i_x]= 0
                     Tda_prime_buy[i_w,i_x] = 0
                     h_buy[i_w,i_x] = 0
@@ -717,11 +723,12 @@ def solve_buy_fast(t,sol,par):
                     continue
                 
                 ## now interpolate on stayer consumption and value function
-                rent = 0
                 c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_v_buy[i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
                 inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
-
+    
+    #print('negative net cash-on-hand for buyers ocurred the following amount of times:')
+    #print(count)
 
 ####################
 # 7. Rent problem   # 

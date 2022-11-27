@@ -155,7 +155,7 @@ def homeownership(model):
 # decision functions #
 ######################
 
-def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a,name):
+def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_ht,name):
 
     #if name == 'discrete':
     #    _discrete(model,t,i_p)
@@ -165,10 +165,10 @@ def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a,name):
         _ref(model,t,i_h,i_w)
     elif name == 'buy':
         _buy(model,t,i_w)
-    #elif name == 'rent':
-    #    _rent(model,t,i_w)
+    elif name == 'rent':
+        _rent(model,t,i_w,i_ht)
     elif name == 'post_decision': #and t <= model.par.T-2:
-        _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a)        
+        _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w)        
 
 def decision_functions(model):
     widgets.interact(_decision_functions,
@@ -185,8 +185,8 @@ def decision_functions(model):
             options=list(range(model.par.Tda_bar)), value=0),      
         i_w=widgets.Dropdown(description='iw', 
             options=list(range(model.par.Nw)), value=np.int(model.par.Nw/2)),
-        i_a=widgets.Dropdown(description='ia', 
-            options=list(range(model.par.Na)), value=np.int(model.par.Na/2)),    
+        i_ht=widgets.Dropdown(description='iht', 
+            options=list(range(model.par.Nhtilde)), value=0),     
         name=widgets.Dropdown(description='name', 
             options=['stay','refinance','buy','rent','post_decision'], value='stay')
         )
@@ -342,28 +342,24 @@ def _buy(model,t,i_w):
     plt.tight_layout()
     plt.show()
 
-def _rent(model,t,i_w):
+def _rent(model,t,i_w,i_ht):
     
     # a. unpack
     par = model.par
     sol = model.sol
 
     # b. figure
-    fig = plt.figure(figsize=(12,12))
-    ax_c = fig.add_subplot(2,2,1,)
-    ax_ht = fig.add_subplot(2,2,2)
-    ax_v = fig.add_subplot(2,2,3)
+    fig = plt.figure(figsize=(12,6))
+    ax_c = fig.add_subplot(2,2,1)
+    ax_v = fig.add_subplot(2,2,2)
 
     # c. plot consumption
-    ax_c.plot(par.grid_m,sol.c_rent[t,i_w,:])
-    ax_c.set_title(f'$c^{{rent}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$)',pad=10)
-
-    # d. plot rental decision
-
+    ax_c.plot(par.grid_m,sol.c_rent[t,i_ht,i_w,:])
+    ax_c.set_title(f'$c^{{rent}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$, $h^{{tilde}} = {par.grid_htilde[i_ht]}$ ),',pad=10)
 
     # e. plot value function
     ax_v.plot(par.grid_m,sol.inv_v_rent[t,i_ht,i_w,:])
-    ax_v.set_title(f'neg. inverse $v^{{rent}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$)',pad=10)
+    ax_v.set_title(f'neg. inverse $v^{{rent}}$ ($t = {t}$, $w = {par.grid_w[i_w]:.2f}$, $h^{{tilde}} = {par.grid_htilde[i_ht]}$)',pad=10)
 
     # f. details
     for ax in [ax_c,ax_v]:
@@ -375,7 +371,7 @@ def _rent(model,t,i_w):
     plt.tight_layout()
     plt.show()
 
-def _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a):
+def _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w):
 
     # a. unpack
     par = model.par
@@ -387,7 +383,7 @@ def _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_a):
 
     # c. plot post decision value function
     ax.plot(par.grid_a,sol.inv_v_bar[t,i_h,i_d,i_Td,i_Tda,i_w,:])
-    ax.set_title(f'neg. inverse  $\ubar{{V}}$ ($t = {t}$, $p = {par.grid_w[i_w]:.2f}$)',pad=10)
+    ax.set_title(f'neg. inverse  $V^{{bar}}$ ($t = {t}$',pad=10)
 
     # d. details
     ax.grid(True)

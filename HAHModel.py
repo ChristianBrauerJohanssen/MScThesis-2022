@@ -123,8 +123,8 @@ class HAHModelClass(EconModelClass):
         par.rd_bar = 75_000/par.median_income           # high tax value of interest deduction threshold
 
         # g. price guesses for stationary equilibrium
-        par.q = 1.0                                                     # house price guess
-        par.q_r = par.gamma+par.q-(1-par.delta)/(1-par.r)*par.q         # implied rental price
+        par.q = 1.0                                                   # house price guess
+        par.q_r = par.gamma+(par.r+par.delta)/(1+par.r)*par.q         # implied rental price
 
         # h. grids
         par.Nh = 6                                      # points in owner occupied housing grid
@@ -133,10 +133,10 @@ class HAHModelClass(EconModelClass):
         par.Nhtilde = 3                                 # points in rental house size grid
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
-        par.Nd = 10                                     # points in mortgage balance grid
-        par.Nm = 10                                     # points in cash on hand grid
-        par.Nx = 15                                     # points in gross resources grid
-        par.Na = 10                                     # points in assets grid
+        par.Nd = 20                                     # points in mortgage balance grid
+        par.Nm = 30                                     # points in cash on hand grid
+        par.Nx = 45                                     # points in gross resources grid
+        par.Na = 30                                     # points in assets grid
         par.m_max = 15.0                                # maximum cash-on-hand
         par.x_max = 15.0                                # maximum gross resources
         par.x_min = -6.0                                # minimum gross resources (before refinancing)
@@ -307,12 +307,6 @@ class HAHModelClass(EconModelClass):
         sol.inv_marg_u_stay = np.zeros(own_shape)
 
         # c. refinance
-        #sol.c_ref = np.zeros(own_shape)
-        #sol.d_prime_ref = np.zeros(own_shape)
-        #sol.Tda_prime_ref = np.zeros(own_shape)   
-        #sol.inv_v_ref = np.zeros(own_shape)
-        #sol.inv_marg_u_ref = np.zeros(own_shape)
-
         sol.c_ref_fast = np.zeros(ref_shape_fast)
         sol.d_prime_ref_fast = np.zeros(ref_shape_fast)
         sol.Tda_prime_ref_fast = np.zeros(ref_shape_fast)   
@@ -320,13 +314,6 @@ class HAHModelClass(EconModelClass):
         sol.inv_marg_u_ref_fast = np.zeros(ref_shape_fast)
 
         # d. buy
-        #sol.c_buy = np.zeros(buy_shape)
-        #sol.h_buy = np.zeros(buy_shape)
-        #sol.d_prime_buy = np.zeros(buy_shape)
-        #sol.Tda_prime_buy = np.zeros(buy_shape)
-        #sol.inv_v_buy = np.zeros(buy_shape)
-        #sol.inv_marg_u_buy = np.zeros(buy_shape)
-
         sol.c_buy_fast = np.zeros(buy_shape_fast)
         sol.h_buy_fast = np.zeros(buy_shape_fast)
         sol.d_prime_buy_fast = np.zeros(buy_shape_fast)
@@ -520,10 +507,6 @@ class HAHModelClass(EconModelClass):
         sim.p_y = np.zeros(sim_shape)
         sim.i_y = np.zeros(sim_shape,dtype=np.int_)
 
-        #sim.psi = np.zeros(sim_shape) 
-        #sim.xi = np.zeros(sim_shape)
-        #sim.z = np.zeros(par.T)    # economy wide shock
-
     def simulate(self,do_utility=False,do_euler_error=False):
         """ simulate the model """
         par = self.par
@@ -575,27 +558,27 @@ class HAHModelClass(EconModelClass):
             print(f'utility calculated in {toc-tic:.1f} secs')
 
     ################
-    #    GenEq     #
+    # equilibrium  #
     ################
     
-    def find_steady_state(self,ab_guess,H_guess,H_min,H_max):
-        
-        sim = self.sim
-        sol = self.sol
-        par = self.par
-        
-        # find stable bequest level
-        steady_state.bequest_loop(self,ab_guess)
+#    def find_steady_state(self,ab_guess,H_guess,H_min,H_max):
+#        
+#        sim = self.sim
+#        sol = self.sol
+#        par = self.par
+#        
+#        # find stable bequest level
+#        steady_state.bequest_loop(self,ab_guess)#
 
-        # check housing market clearing
-        steady_state.find_ss(self,do_print=par.do_print,)
+#        # check housing market clearing
+#        steady_state.find_ss(self,do_print=par.do_print,)#
 
-    
-    #prepare_hh_ss = steady_state.prepare_hh_ss
-    find_ss = steady_state.find_ss
+#    
+#    #prepare_hh_ss = steady_state.prepare_hh_ss
+#    find_ss = steady_state.find_ss
 
     ################
-    #    Figures   #
+    #    figures   #
     ################
 
 #   def egm(self):        
@@ -608,7 +591,6 @@ class HAHModelClass(EconModelClass):
     def fig_decision_functions(self):
         figs.decision_functions(self)
     
-    
     #def mpc_over_cash_on_hand(self):
     #    figs.mpc_over_cash_on_hand(self)
     #def mpc_over_lifecycle(self):
@@ -616,7 +598,7 @@ class HAHModelClass(EconModelClass):
 
 
     ################
-    #    Tables    #
+    #    tables    #
     ################
 
 
