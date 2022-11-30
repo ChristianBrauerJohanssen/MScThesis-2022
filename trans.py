@@ -9,16 +9,6 @@ import mt
 
 # 2. income process
 @njit(fastmath=True)
-def p_plus_func(p,psi,par,t):
-    if t<=par.Tr:
-        p_plus = p**(par.rho_p)*psi*par.chi[t]
-        p_plus = np.fmax(par.p_min,np.fmin(p_plus,par.p_max)) # bounds
-    else: 
-        p_plus = p**(par.rho_p)*par.chi[t] # no shocks to permanent income after retirement
-        p_plus = np.fmax(par.p_min,np.fmin(p_plus,par.p_max)) # bounds
-    return p_plus
-
-@njit(fastmath=True)
 def p_to_y_func(i_y,p,p_lag,t,par):
     
     if t <= par.Tr:
@@ -70,51 +60,15 @@ def ab_plus_func(a,d,Tda,h,par):
         r = par.r_da
     else: 
         r = par.r_m
-    return (1+par.r)*a + (1-par.C_sell-par.delta)*par.q*h - mt.property_tax(par.q,h,par) - (1+r)*d
+    return (1+par.r)*a + (1-par.delta)*par.q*h - mt.property_tax(par.q,h,par) - (1+r)*d
 
-
-#njit(fastmath=True)
-#def m_to_mnet_stay(m_plus,h,par):
-#    # unpack parameters
-#    delta = par.delta
-#    q = par.q
-#
-#    # compute m_net
-#    m_net = m_plus - delta*q*h - mt.property_tax(q,h,par)
-#    return m_net
-#
-#njit(fastmath=True)
-#def m_to_mnet_ref(m_plus,h,d,d_prime,par): 
-#    # a. take new loan?
-#    loan = 0
-#    if d_prime > 0:
-#        loan = 1
-#
-#    # b. net cash-on-hand
-#    m_net = m_plus-d-par.delta*par.q*h-mt.property_tax(par.q,h,par)-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime 
-#    return m_net
-#
-#njit(fastmath=True)
-#def m_to_mnet_buy(m_plus,h,d,d_prime,hbuy,par): 
-#    # a. take new loan?
-#    loan = 0
-#    if d_prime > 0:
-#        loan = 1
-#
-#    # b. net cash-on-hand
-#    m_net = m_plus+d-(par.delta+par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime -(1+par.C_buy)*par.q*hbuy
-#    return m_net
-#
-#@njit(fastmath=True)
-#def m_to_mnet_rent(m_plus,htilde,par):
-#    # unpack parameters
-#    q_r = par.q_r
-#    return m_plus - q_r*htilde
 
 #@njit(fastmath=True)
-#def w_plus_func(p_plus,xi,work,par):
-#    if work == 0: 
-#        w_plus = par.b
-#    else:
-#        w_plus = (xi*p_plus-par.pi*par.b)/(1-par.pi)
-#    return w_plus
+#def p_plus_func(p,psi,par,t):
+#    if t<=par.Tr:
+#        p_plus = p**(par.rho_p)*psi*par.chi[t]
+#        p_plus = np.fmax(par.p_min,np.fmin(p_plus,par.p_max)) # bounds
+#    else: 
+#        p_plus = p**(par.rho_p)*par.chi[t] # no shocks to permanent income after retirement
+#        p_plus = np.fmax(par.p_min,np.fmin(p_plus,par.p_max)) # bounds
+#    return p_plus

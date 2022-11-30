@@ -15,10 +15,10 @@ import trans
 import utility
 import mt
 
+
 ###############################
 #  2. Simulate lifecyle - PE  #
 ###############################
-
 @njit(parallel=True)
 def lifecycle(sim,sol,par):
     """ simulate full life-cycle given prices and bequest distribution """
@@ -45,6 +45,10 @@ def lifecycle(sim,sol,par):
         # unpack indexing
         i_y = sim.i_y
 
+        # unpack additional output
+        inc_tax = sim.inc_tax
+        prop_tax = sim.prop_tax
+
     # simulate forward
         for i in prange(par.simN):
             
@@ -65,18 +69,43 @@ def lifecycle(sim,sol,par):
                 Td[t,i] = 0
                 Tda[t,i] = 0                
                 p[t,i] = par.grid_w[i_y_]
-                y[t,i] = trans.p_to_y_func(i_y=i_y_,p=p[t,i],p_lag=0,t=t,par=par)
+                y[t,i] = trans.p_to_y_func(
+                                        i_y=i_y_,
+                                        p=p[t,i],
+                                        p_lag=0,
+                                        t=t,
+                                        par=par)
+                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                prop_tax[t,i] = mt.property_tax(par.q,h[t,i,par])
                 m[t,i] = sim.a0[i] + y[t,i]
                 
             else:
                 h[t,i] = h_prime[t-1,i]
-                d[t,i] = trans.d_plus_func(d_prime[t-1,i],t,Td_prime[t-1,i],
-                                           Tda_prime[t-1,i],par) # with or without trans_func?
+                d[t,i] = trans.d_plus_func(
+                                        d_prime[t-1,i],
+                                        t,
+                                        Td_prime[t-1,i],
+                                        Tda_prime[t-1,i],
+                                        par) 
                 Td[t,i] = Td_prime[t-1,i]
                 Tda[t,i] = trans.Tda_plus_func(Tda_prime[t-1,i]) 
                 p[t,i] = par.grid_w[i_y_]
-                y[t,i] = trans.p_to_y_func(i_y=i_y_,p=p[t,i],p_lag=p[t-1,i],t=t,par=par)
-                m[t,i] = trans.m_plus_func(a[t-1,i],y[t,i],d[t-1,i],Td[t-1,i],Tda[t-1,i],par,t)
+                y[t,i] = trans.p_to_y_func(
+                                        i_y=i_y_,
+                                        p=p[t,i],
+                                        p_lag=p[t-1,i],
+                                        t=t,
+                                        par=par)
+                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                prop_tax[t,i] = mt.property_tax(par.q,h[t,i,par])                                        
+                m[t,i] = trans.m_plus_func(
+                                        a[t-1,i],
+                                        y[t,i],
+                                        d[t-1,i],
+                                        Td[t-1,i],
+                                        Tda[t-1,i],
+                                        par,
+                                        t)
 
             # c. scale mortgage grid
             d_prime_high = par.q*h[t,i]
@@ -91,6 +120,9 @@ def lifecycle(sim,sol,par):
 def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
                    h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,
                    c,a,discrete,sol,par):
+
+    # compute last period bequest motive
+        # instead m_gross, compute ab_trans
 
     # a. compute gross cash-on-hand
     m_gross_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
@@ -124,8 +156,9 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
         inv_v_ref = linear_interp.interp_1d(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_y_,:],m_gross_ref)    
     
     # d. find behaviour given discrete choice
-    if h == 0:
+    if h == 0: # cannot stay nor refinance if you have no house
         discrete_choice = np.amax(np.array([inv_v_buy,inv_v_rent]))
+        
         # i. buy new house?
         if discrete_choice == inv_v_buy: 
             
@@ -172,7 +205,79 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
             else: 
                 a[0] = m_net_rent - c[0]
 
-    else: 
+    elif d == 0 : # cannot refinance if you have no debt  
+        discrete_choice = np.amax(np.array([inv_v_stay,inv_v_buy,inv_v_rent]))
+
+        # o. stay and pay
+        if discrete_choice == inv_v_stay:
+            ## discrete choices (all fixed)
+            discrete[0] = 0
+            h_prime[0] = h
+            d_prime[0] = d
+            Td_prime[0] = Td
+            Tda_prime[0] = Tda
+
+            ## consumption choice
+            c[0] = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.c_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],
+                                           d,m_gross_stay)
+
+            ## credit constrained? 
+            if c[0] > m_gross_stay:
+                c[0] = m_gross_stay
+                #if c[0] <= 0:
+                    # do default
+                a[0] = 0.0
+            else:
+                a[0] = m_gross_stay - c[0]
+
+
+        # oo. buy new house
+        elif discrete_choice == inv_v_buy: 
+
+            discrete[0] = 2
+
+            ## house purchase
+            h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
+
+            ## mortgage plan choice
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
+            Td_prime[0] = mt.Td_func(t,par)
+            Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
+
+            ## consumption choice
+            c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
+
+            ## ensure feasibility
+            loan = int(d_prime[0]>0)
+            m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            if c[0] > m_net_buy : 
+                c[0] = m_net_buy
+                a[0] = 0.0
+            else:
+                a[0] = m_net_buy - c[0]
+        
+        # ooo. rent
+        elif discrete_choice == inv_v_rent:
+            ## discrete choices (all fixed)
+            discrete[0] = 3
+            h_tilde[0] = h_tilde_best
+            h_prime[0] = 0
+            d_prime[0] = 0
+            Td_prime[0] = 0
+            Tda_prime[0] = 0
+
+            ## consumption choice
+            m_net_rent = m_gross_rent - par.q_r*h_tilde_best
+            c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_net_rent)
+
+            ## ensure feasibility
+            if c[0] > m_net_rent:
+                c[0] = m_net_rent
+                a[0] = 0.0
+            else: 
+                a[0] = m_net_rent - c[0]
+
+    else:  
         discrete_choice = np.amax(np.array([inv_v_stay,inv_v_ref,inv_v_buy,inv_v_rent]))
 
         # o. stay and pay
@@ -267,6 +372,9 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
                 a[0] = m_net_rent - c[0]
 
 
+###############################
+# 3. Euler errors and utility #
+###############################
 @njit            
 def euler_errors(sim,sol,par):
 
@@ -349,6 +457,10 @@ def calc_utility(sim,par):
                 rent = 1
                 u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h_tilde[t,i],move,rent,t,par)
 
+
+###############################
+# 4. Utilities                #
+###############################
 @njit
 def find_nearest(array,value):
     """ lookup index of nearest point on the grid for given array and value """

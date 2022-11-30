@@ -43,9 +43,9 @@ def lifecycle(model,quantiles:bool=False):
     fig = plt.figure(figsize=(12,12))
 
     simvarlist = [('y','$y_t$ - mean pre-tax income'),
-                  ('h','$h_{t-1}$ - mean house size beg.'),
+                  #('h','$h_{t-1}$ - mean house size beg.'),
                   ('h_prime','$h_t$ - mean house size'),
-                  ('d','$d_t$ - mean debt beg.'),
+                  #('d','$d_t$ - mean debt beg.'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
                   ('m','$m_t$ - mean cash on hand beg.'),
                   ('c','$c_t$ - mean consumption '),
@@ -150,6 +150,53 @@ def homeownership(model):
     plt.savefig('output/homeownership_baseline.png')
     plt.show()
 
+def nw_and_tc(model):
+    
+    # a. unpack
+    par = model.par
+    sim = model.sim
+
+    # b. create x axis
+    age = np.arange(par.T)+par.Tmin
+    
+    # c. booleans for computation
+    bool_stay = sim.discrete == 0
+    bool_ref = sim.discrete == 1
+    bool_buy = sim.discrete == 2
+    bool_rent = sim.discrete == 3
+    bool_da = sim.Tda > 0
+    bool_dp = sim.d_prime > 0
+
+    # d. compute net wealth end of period
+    net_wealth = sim.a+sim.h_prime-sim.d_prime
+
+    # e. compute user cost of housing
+    rent_cost = bool_rent*par.q_r*sim.h_tilde
+    own_cost = (bool_stay+bool_ref)*(par.delta+par.tau_h0)*par.q*sim.h + bool_da*par.r_da*sim.d + (1-bool_da)*par.r_m*sim.d
+
+    user_cost = rent_cost + own_cost ### add two-bracket property tax later
+
+    # f. compute transaction costs
+    mortgage_cost = (bool_ref+bool_buy)*bool_dp*par.Cf_ref + (bool_ref+bool_buy)*sim.d*par.Cp_ref
+    buy_house_cost = bool_buy*sim.h*par.C_sell + bool_buy*sim.h_prime*par.C_buy
+    
+    trans_cost = mortgage_cost + buy_house_cost
+
+    # g. plot
+    fig = plt.figure(figsize=(12,6))
+
+    ax = fig.add_subplot(1,3,1)
+    ax.plot(age,np.mean(net_wealth,axis=1),lw=2)
+    ax.set_title('net wealth end of period',fontsize=14)
+    plt.vlines(x=[55,75],ymin=1.0,ymax=4.0,color='orange')
+
+    ax = fig.add_subplot(1,3,2)
+    ax.plot(age,np.mean(user_cost,axis=1),lw=2)
+    ax.set_title('mean user cost of housing (crude measure)',fontsize=14)
+
+    ax = fig.add_subplot(1,3,3)
+    ax.plot(age,np.mean(trans_cost,axis=1),lw=2)
+    ax.set_title('mean transaction costs',fontsize=14);
 
 ######################
 # decision functions #

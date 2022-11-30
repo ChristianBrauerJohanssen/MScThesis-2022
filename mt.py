@@ -51,10 +51,6 @@ def Td_func(t,par):
         Td = par.T-1
     return Td
 
-#@njit(fastmath=True)
-#def alfahage(n,r):
-#     return ((1+r)**n-1)/(r*(1+r)**n)
-
 @njit(fastmath=True)
 def mpmt(d,t,Td,Tda,par):
     """ 
@@ -85,3 +81,8 @@ def mpmt(d,t,Td,Tda,par):
         tot_pmt = d*(r/(1-(1+r)**(t-Td)))
         
     return tot_pmt
+
+
+#@njit(fastmath=True)
+#def alfahage(n,r):
+#     return ((1+r)**n-1)/(r*(1+r)**n)

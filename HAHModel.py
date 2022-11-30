@@ -96,7 +96,7 @@ class HAHModelClass(EconModelClass):
         par.r_m = par.r+0.0056                          # amortising mortgage interest rate     
         par.r_da = par.r_m+0.0008                       # deferred amortisation mortgage rate
         par.omega_ltv = 0.8                             # loan-to-value ratio  
-        par.omega_dti = 5*np.ones(par.T)                # debt-to-income ratio working life
+        par.omega_dti = 4.5*np.ones(par.T)              # debt-to-income ratio working life
         par.omega_dti[par.Tr:] = 2.5                    # debt-to-income ratio retired
         par.Cp_ref = 0.017                              # proportional refinancing cost JEJA
         par.Cf_ref = 8250/par.median_income             # fixed refinancing cost
@@ -107,14 +107,14 @@ class HAHModelClass(EconModelClass):
         # e. housing and rental markets
         par.delta = 0.015                               # proportional maintenance cost
         par.gamma = 0.014                               # per rental unit operating cost
-        par.C_buy = 0.00                                # proportional house sale cost
+        par.C_buy = 0.02                                # proportional house sale cost
         par.C_sell = 0.04                               # proportional house purchase cost
         #par.sigma_epsilon = 0.04                       # std. dev. of housing shock
         #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
-        par.tau_y0 = 0.19 #0.256+0.08                         # income tax function parameter 1    
-        par.tau_y1 = 0.18                               # income tax function parameter 2
+        par.tau_y0 = 0.33                         # income tax function parameter 1    
+        par.tau_y1 = 0.19                               # income tax function parameter 2
         par.tau_h0 = 0.0092                             # bottom-bracket property tax rate
         par.tau_h1 = 0.03                               # top-bracket property tax rate
         par.tau_r0 = 0.336                              # low bracket tax value of interest rate expenses
@@ -133,17 +133,17 @@ class HAHModelClass(EconModelClass):
         par.Nhtilde = 3                                 # points in rental house size grid
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
-        par.Nd = 20                                     # points in mortgage balance grid
-        par.Nm = 30                                     # points in cash on hand grid
-        par.Nx = 45                                     # points in gross resources grid
-        par.Na = 30                                     # points in assets grid
+        par.Nd = 10                                     # points in mortgage balance grid
+        par.Nm = 25                                     # points in cash on hand grid
+        par.Nx = 25                                     # points in gross resources grid
+        par.Na = 25                                     # points in assets grid
         par.m_max = 15.0                                # maximum cash-on-hand
         par.x_max = 15.0                                # maximum gross resources
         par.x_min = -6.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max+1.0                       # maximum assets
 
         # i. simulation
-        par.mu_a0 = 1.0                                 # mean initial assets
+        par.mu_a0 = 0.8                                 # mean initial assets
         par.sigma_a0 = 0.5                              # standard dev. of initial assets
         
         par.simN = 100_000                              # number of simulated agents
@@ -155,9 +155,9 @@ class HAHModelClass(EconModelClass):
         par.tol = 1e-12                                 # solution precision tolerance
         par.do_print = False                            # whether to print solution progress
         par.do_print_period = False                     # whether to print solution progress every period
-        par.max_iter_solve = 50_000                     # max iterations when solving household problem
-        par.max_iter_simulate = 5_000                  # max iterations when simulating household problem
-        par.include_unemp = True
+        #par.max_iter_solve = 50_000                     # max iterations when solving household problem
+        par.max_iter_simulate = 5_000                   # max iterations when simulating household problem
+        par.include_unemp = True                        # unemployment extension?
 
     def allocate(self):
         """ allocate model """
@@ -176,7 +176,7 @@ class HAHModelClass(EconModelClass):
         # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
         par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-        par.grid_x = equilogspace(par.x_min,par.x_max,par.Nx)
+        par.grid_x = np.linspace(par.x_min,par.x_max,par.Nx)
         par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double') # strictly speaking, htilde is not a state
         
         # b. post-decision assets
@@ -494,14 +494,19 @@ class HAHModelClass(EconModelClass):
         sim.discrete = np.zeros(sim_shape,dtype=np.int)  
         sim.c = np.zeros(sim_shape)
         sim.a = np.zeros(sim_shape)
-        
-        # c. euler
+
+        # c. additional output
+        sim.inc_tax = np.zeros(sim_shape)
+        sim.prop_tax = np.zeros(sim_shape)
+        sim.interest = np.zeros(sim_shape)
+
+        # d. euler
         euler_shape = (par.T-1,par.simN)
         sim.euler_error = np.zeros(euler_shape)
         sim.euler_error_c = np.zeros(euler_shape)
         sim.euler_error_rel = np.zeros(euler_shape)  
         
-        # d. shocks
+        # e. shocks
         sim.p_y_ini = np.zeros(par.simN)
         sim.p_ini = np.zeros(par.simN)
         sim.p_y = np.zeros(sim_shape)
@@ -519,6 +524,7 @@ class HAHModelClass(EconModelClass):
         sim.p_y_ini[:] = np.random.uniform(size=par.simN)
         sim.p_y[:,:] = np.random.uniform(size=(sim_shape))
         sim.a0[:] = par.mu_a0*np.random.lognormal(mean=0,sigma=par.sigma_a0,size=par.simN)
+        #sim.a0[:] = np.maximum(np.random.normal(loc=par.mu_a0,scale=par.sigma_a0,size=par.simN),np.zeros(par.simN))
         
         # b. call
         with jit(self) as model:
