@@ -66,21 +66,21 @@ def lifecycle(model,quantiles:bool=False):
         simdata = getattr(sim,simvar)[:par.T,:]
         
         # plot
-        if quantiles:
-            if simvar not in ['discrete','mpc']:
-                series = np.percentile(simdata, np.arange(0, 100, 25),axis=1)
-                ax.plot(age, series.T,lw=2)
-                if i == 0: ax.legend(np.arange(0, 100, 25),title='Quantiles',fontsize=8)
-            else:
-                ax.plot(age,np.mean(simdata,axis=1),lw=2)
+        #if quantiles:
+        #    if simvar not in ['discrete','mpc']:
+        #        series = np.percentile(simdata, np.arange(0, 100, 25),axis=1)
+        #        ax.plot(age, series.T,lw=2)
+        #        if i == 0: ax.legend(np.arange(0, 100, 25),title='Quantiles',fontsize=8)
+        #    else:
+        #        ax.plot(age,np.mean(simdata,axis=1),lw=2)
 
-        else:
-            ax.plot(age,np.mean(simdata,axis=1),lw=2)
-            #if simvar not in ['discrete','mpc']:
-            #    ax.plot(age,np.percentile(simdata,25,axis=1),
-            #        ls='--',lw=1,color='black')
-            #    ax.plot(age,np.percentile(simdata,75,axis=1),
-            #        ls='--',lw=1,color='black')
+        
+        ax.plot(age,np.mean(simdata,axis=1),lw=2)
+        if simvar in ['y','c']:
+            ax.plot(age,np.percentile(simdata,25,axis=1),
+                ls='--',lw=1,color='black')
+            ax.plot(age,np.percentile(simdata,75,axis=1),
+                ls='--',lw=1,color='black')
         ax.set_title(simvarlatex,fontsize=20)
         if par.T > 10:
             ax.xaxis.set_ticks(age[::5])
@@ -172,9 +172,9 @@ def nw_and_tc(model):
 
     # e. compute user cost of housing
     rent_cost = bool_rent*par.q_r*sim.h_tilde
-    own_cost = (bool_stay+bool_ref)*(par.delta+par.tau_h0)*par.q*sim.h + bool_da*par.r_da*sim.d + (1-bool_da)*par.r_m*sim.d
+    own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest #+ bool_da*par.r_da*sim.d + (1-bool_da)*par.r_m*sim.d
 
-    user_cost = rent_cost + own_cost ### add two-bracket property tax later
+    user_cost = rent_cost + own_cost 
 
     # f. compute transaction costs
     mortgage_cost = (bool_ref+bool_buy)*bool_dp*par.Cf_ref + (bool_ref+bool_buy)*sim.d*par.Cp_ref

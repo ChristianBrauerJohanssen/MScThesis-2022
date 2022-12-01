@@ -43,8 +43,6 @@ def Tda_plus_func(Tda):
 
 @njit(fastmath=True)
 def d_plus_func(d,t,Td,Tda,par):
-    #if move or ref:
-    #    d_plus = (1+par.r_m)*np.fmin(par.omega_ltv*q*h,par.omega_dti*w)
     if Tda > 0:
         d_plus = d
     else: 

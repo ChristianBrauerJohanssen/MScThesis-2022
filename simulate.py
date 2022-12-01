@@ -8,7 +8,7 @@ from numba import njit, prange
 
 # b. NumEconCph packages
 from consav import linear_interp # for linear interpolation
-from consav.markov import choice, log_rouwenhorst # for lookup in transition matrix
+from consav.markov import choice # for lookup in transition matrix
 
 # c. local modules
 import trans
@@ -22,7 +22,7 @@ import mt
 @njit(parallel=True)
 def lifecycle(sim,sol,par):
     """ simulate full life-cycle given prices and bequest distribution """
-    for t in range(par.T):
+    for t in range(par.T): #+1??
         # unpack state containers
         h = sim.h
         d = sim.d
@@ -48,6 +48,7 @@ def lifecycle(sim,sol,par):
         # unpack additional output
         inc_tax = sim.inc_tax
         prop_tax = sim.prop_tax
+        interest = sim.interest
 
     # simulate forward
         for i in prange(par.simN):
@@ -75,9 +76,11 @@ def lifecycle(sim,sol,par):
                                         p_lag=0,
                                         t=t,
                                         par=par)
+                m[t,i] = sim.a0[i] + mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                
                 inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
-                prop_tax[t,i] = mt.property_tax(par.q,h[t,i,par])
-                m[t,i] = sim.a0[i] + y[t,i]
+                prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)
+                
                 
             else:
                 h[t,i] = h_prime[t-1,i]
@@ -96,8 +99,6 @@ def lifecycle(sim,sol,par):
                                         p_lag=p[t-1,i],
                                         t=t,
                                         par=par)
-                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
-                prop_tax[t,i] = mt.property_tax(par.q,h[t,i,par])                                        
                 m[t,i] = trans.m_plus_func(
                                         a[t-1,i],
                                         y[t,i],
@@ -106,6 +107,10 @@ def lifecycle(sim,sol,par):
                                         Tda[t-1,i],
                                         par,
                                         t)
+
+                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)                                        
+                interest[t,i] = (1-(Tda[t-1,i]>0))*par.r_m*d_prime[t-1,i] + (Tda[t-1,i]>0)*par.r_da*d_prime[t-1,i]
 
             # c. scale mortgage grid
             d_prime_high = par.q*h[t,i]

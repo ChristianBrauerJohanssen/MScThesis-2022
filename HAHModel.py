@@ -45,7 +45,7 @@ class HAHModelClass(EconModelClass):
         """ fundamental settings """
 
         # a. namespaces 
-        self.namespaces = ['par','sim','sol','ss'] 
+        self.namespaces = ['par','sim','sol'] 
         
         # b. other attributes
         self.other_attrs = []
@@ -133,17 +133,17 @@ class HAHModelClass(EconModelClass):
         par.Nhtilde = 3                                 # points in rental house size grid
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
-        par.Nd = 10                                     # points in mortgage balance grid
-        par.Nm = 25                                     # points in cash on hand grid
-        par.Nx = 25                                     # points in gross resources grid
-        par.Na = 25                                     # points in assets grid
-        par.m_max = 15.0                                # maximum cash-on-hand
-        par.x_max = 15.0                                # maximum gross resources
-        par.x_min = -6.0                                # minimum gross resources (before refinancing)
+        par.Nd = 15                                     # points in mortgage balance grid
+        par.Nm = 30                                     # points in cash on hand grid
+        par.Nx = 45                                     # points in gross resources grid
+        par.Na = 30                                     # points in assets grid
+        par.m_max = 35.0                                # maximum cash-on-hand
+        par.x_max = 35.0                                # maximum gross resources
+        par.x_min = -7.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max+1.0                       # maximum assets
 
         # i. simulation
-        par.mu_a0 = 0.8                                 # mean initial assets
+        par.mu_a0 = 0.7                                 # mean initial assets
         par.sigma_a0 = 0.5                              # standard dev. of initial assets
         
         par.simN = 100_000                              # number of simulated agents
@@ -174,10 +174,10 @@ class HAHModelClass(EconModelClass):
         par = self.par
 
         # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
-        par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
+        par.grid_h = 1.2*np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
         par.grid_x = np.linspace(par.x_min,par.x_max,par.Nx)
-        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double') # strictly speaking, htilde is not a state
+        par.grid_htilde = 1.2*np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double')
         
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)

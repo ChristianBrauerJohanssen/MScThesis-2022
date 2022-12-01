@@ -1,10 +1,10 @@
-#####################################
-# mortgage payment and tax schedule #
-#####################################
+#############################
+# mortgage and tax payments #
+#############################
 
 # imports
 import numpy as np
-from numba import njit, prange
+from numba import njit
 
 # income and property tax functions
 @njit(fastmath=True)
@@ -55,13 +55,14 @@ def Td_func(t,par):
 def mpmt(d,t,Td,Tda,par):
     """ 
     args:
-        d (float)       - outstanding mortgage balance
+        d (float)       - outstanding mortgage balance end of last period
+        t (int)         - current time period
         Td (int)        - time of last mortgage term
-        Tda (int)       - remaining periods of deferred amortisation
+        Tda (int)       - remaining periods of deferred amortisation end of last period
         par             - model parameters
     
     returns:
-        tot_pmt         - total mortgage payment in period t
+        tot_pmt         - total ex post mortgage payment in period t
     """
     #derive the mortgage schedule
     if t >= Td:
@@ -81,8 +82,3 @@ def mpmt(d,t,Td,Tda,par):
         tot_pmt = d*(r/(1-(1+r)**(t-Td)))
         
     return tot_pmt
-
-
-#@njit(fastmath=True)
-#def alfahage(n,r):
-#     return ((1+r)**n-1)/(r*(1+r)**n)

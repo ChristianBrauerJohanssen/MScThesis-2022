@@ -54,12 +54,9 @@ def last_period_v_bar_q(t,sol,par):
                 for i_d in range(par.Nd):    
                     for i_a in range(par.Na):
                         
-                        ## o. mortgage? 
-                        #if Td_max < t-1: 
-                        #    d = 0
-                        #else: 
-                        #    d = grid_d[i_d]
+                        ## o. mortgage 
                         d = grid_d[i_d]
+
                         # oo. remaining post decision states
                         Tda = i_Tda
                         a = par.grid_a[i_a]
@@ -207,7 +204,7 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                         for i_dp in range(par.Nd):
 
                             # i. next period mortgage balance
-                            d_plus = trans.d_plus_func(grid_d_prime[i_dp],t,Td,Tda,par)
+                            d_plus = trans.d_plus_func(grid_d_prime[i_dp],t+1,Td,Tda,par)
                         
                             # ii. initialise at zero
                             for i_a in range(par.Na):
