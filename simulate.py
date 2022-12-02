@@ -22,7 +22,7 @@ import mt
 @njit(parallel=True)
 def lifecycle(sim,sol,par):
     """ simulate full life-cycle given prices and bequest distribution """
-    for t in range(par.T): #+1??
+    for t in range(par.T): 
         # unpack state containers
         h = sim.h
         d = sim.d

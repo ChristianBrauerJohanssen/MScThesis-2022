@@ -22,11 +22,11 @@ from consav import linear_interp
 import utility
 
 
-#############
-# lifecycle #
-#############
+#################
+#   lifecycle   #
+#################
 
-def lifecycle(model,quantiles:bool=False):
+def lifecycle_full(model,quantiles:bool=False):
     '''
     Plot the lifecycle of the model.
     Keyword arguments:
@@ -35,9 +35,6 @@ def lifecycle(model,quantiles:bool=False):
     # a. unpack
     par = model.par
     sim = model.sim
-
-    # b. compute additional output
-    #net_wealth = sim.a + par.q*sim.h_prime - sim.d_prime
 
     # b. figure
     fig = plt.figure(figsize=(12,12))
@@ -63,7 +60,7 @@ def lifecycle(model,quantiles:bool=False):
 
         ax = fig.add_subplot(rows,cols,i+1)
 
-        simdata = getattr(sim,simvar)[:par.T,:]
+        simdata = getattr(sim,simvar)[:,:]
         
         # plot
         #if quantiles:
@@ -160,11 +157,9 @@ def nw_and_tc(model):
     age = np.arange(par.T)+par.Tmin
     
     # c. booleans for computation
-    bool_stay = sim.discrete == 0
     bool_ref = sim.discrete == 1
     bool_buy = sim.discrete == 2
     bool_rent = sim.discrete == 3
-    bool_da = sim.Tda > 0
     bool_dp = sim.d_prime > 0
 
     # d. compute net wealth end of period
@@ -172,7 +167,7 @@ def nw_and_tc(model):
 
     # e. compute user cost of housing
     rent_cost = bool_rent*par.q_r*sim.h_tilde
-    own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest #+ bool_da*par.r_da*sim.d + (1-bool_da)*par.r_m*sim.d
+    own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest
 
     user_cost = rent_cost + own_cost 
 
@@ -198,10 +193,111 @@ def nw_and_tc(model):
     ax.plot(age,np.mean(trans_cost,axis=1),lw=2)
     ax.set_title('mean transaction costs',fontsize=14);
 
-######################
-# decision functions #
-######################
 
+##################
+# model vs. data #
+##################
+
+def lifecycle_consav(model,c_data,nw_data):
+    
+    # a. unpack
+    par = model.par
+    sim = model.sim
+
+    # b. prep model output
+    age = np.arange(par.T)+par.Tmin
+    
+    c_model = sim.c 
+    nw_model = sim.a + sim.h_prime - sim.d_prime
+
+    # c. plot
+    fig = plt.figure(figsize=(12,6))
+
+    ax_c = fig.add_subplot(1,2,1)
+    ax_c.plot(age,np.mean(c_model,axis=1),lw=2,label='model')
+    ax_c.plot(c_data[:,0],c_data[:,1],linestyle='-',marker=".",label='data')
+    ax_c.legend()
+
+    ax_nw = fig.add_subplot(1,2,2)
+    ax_nw.plot(age,np.mean(nw_model,axis=1),lw=2,label='model')
+    ax_nw.plot(nw_data[:,0],nw_data[:,1],linestyle='-',marker=".",label='data')
+    ax_nw.legend()
+
+    # d. save and show   
+    plt.tight_layout()
+    plt.savefig('output/lifecycle_consav.png')
+    plt.show()
+
+def lifecycle_housing(model,ho_data,hexp_data):
+    
+    # a. unpack
+    par = model.par
+    sim = model.sim
+
+    # b. prep model output
+    age = np.arange(par.T)+par.Tmin
+    bool_rent = sim.discrete == 3
+    ho_model = np.ones((par.T,par.simN)) - bool_rent 
+
+    rent_cost = bool_rent*par.q_r*sim.h_tilde
+    own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest
+    hexp_model  = rent_cost + own_cost 
+
+    # c. plot
+    fig = plt.figure(figsize=(12,6))
+
+    ax_ho = fig.add_subplot(1,2,1)
+    ax_ho.plot(age,np.mean(ho_model,axis=1),lw=2,label='model')
+    ax_ho.plot(ho_data[:,0],ho_data[:,1],linestyle='-',marker=".",label='data')
+    ax_ho.legend()
+
+    ax_hexp = fig.add_subplot(1,2,2)
+    ax_hexp.plot(age,np.mean(hexp_model,axis=1),lw=2,label='model')
+    ax_hexp.plot(hexp_data[:,0],hexp_data[:,1],linestyle='-',marker=".",label='data')
+    ax_hexp.legend()
+
+    # d. save and show   
+    plt.tight_layout()
+    plt.savefig('output/lifecycle_housing.png')
+    plt.show()
+
+def lifecycle_mortgage(model,d_data):
+    
+    # a. unpack
+    par = model.par
+    sim = model.sim
+
+    # b. prep model output
+    age = np.arange(par.T)+par.Tmin
+    
+    d_model = sim.d_prime
+    
+    bool_dp = sim.d_prime > 0
+    bool_da = sim.Tda_prime > 0
+    b_dp_da = bool_dp*bool_da
+
+    DA_shares = np.sum(b_dp_da,axis=1)/np.sum(bool_dp,axis=1)
+
+    # c. plot
+    fig = plt.figure(figsize=(12,6))
+
+    ax_d = fig.add_subplot(1,2,1)
+    ax_d.plot(age,np.mean(d_model,axis=1),lw=2,label='model')
+    ax_d.plot(d_data[:,0],d_data[:,1],linestyle='-',marker=".",label='data')
+    ax_d.legend()
+
+    ax_da = fig.add_subplot(1,2,2)
+    ax_da.plot(age,DA_shares,lw=2,label='model')
+    ax_da.legend()
+
+    # d. save and show   
+    plt.tight_layout()
+    plt.savefig('output/lifecycle_mortgage.png')
+    plt.show()
+
+##################
+# decision funcs #
+##################
 def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_ht,name):
 
     #if name == 'discrete':

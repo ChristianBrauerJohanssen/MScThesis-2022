@@ -45,10 +45,10 @@ def property_tax(q,h,par):
 # mortgage payment schedule
 @njit(fastmath=True)
 def Td_func(t,par):
-    if par.T > t + par.Td_bar:
+    if par.T >= t + par.Td_bar:
         Td = t + par.Td_bar
     else: 
-        Td = par.T-1
+        Td = par.T
     return Td
 
 @njit(fastmath=True)

@@ -11,7 +11,7 @@ import mt
 @njit(fastmath=True)
 def p_to_y_func(i_y,p,p_lag,t,par):
     
-    if t <= par.Tr:
+    if t < par.Tr:
         y = p*par.chi[t] 
     else: 
         y = par.chi[t]
