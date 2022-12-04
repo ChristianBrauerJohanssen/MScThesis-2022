@@ -102,12 +102,11 @@ def homeownership(model):
     sim = model.sim 
     
     # b. allocate containers and compute shares
-    own_share = np.zeros(par.T)
     stay_share = np.zeros(par.T)
     ref_share = np.zeros(par.T)
     buy_share = np.zeros(par.T)
     rent_share = np.zeros(par.T)
-    
+    np.sum(sim.discrete==0,axis=1)/par.simN
     for t in range(par.T):
         stay_share[t] = np.sum(sim.discrete[t]==0)/par.simN
         ref_share[t] = np.sum(sim.discrete[t]==1)/par.simN
@@ -115,10 +114,7 @@ def homeownership(model):
         rent_share[t] = np.sum(sim.discrete[t]==3)/par.simN
         assert np.isclose(stay_share[t]+ref_share[t]+buy_share[t]+rent_share[t],1), print(f'discrete shares does not sum to one in period {t}') 
     
-    own_share = stay_share + ref_share + buy_share
-    
-    simvardict = {#'owners':own_share,
-                  'renters':rent_share,         
+    simvardict = {'renters':rent_share,         
                   'stayers':stay_share,
                   'refinancers':ref_share,
                   'buyers':buy_share     

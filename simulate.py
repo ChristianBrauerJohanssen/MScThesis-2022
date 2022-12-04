@@ -78,7 +78,7 @@ def lifecycle(sim,sol,par):
                                         par=par)
                 m[t,i] = sim.a0[i] + mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
                 
-                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],0,0,par)
                 prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)
                 
                 
@@ -102,38 +102,39 @@ def lifecycle(sim,sol,par):
                 m[t,i] = trans.m_plus_func(
                                         a[t-1,i],
                                         y[t,i],
-                                        d[t-1,i],
-                                        Td[t-1,i],
-                                        Tda[t-1,i],
+                                        d_prime[t-1,i],
+                                        Td_prime[t-1,i],
+                                        Tda_prime[t-1,i],
                                         par,
                                         t)
 
-                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d_prime[t-1,i],Tda_prime[t-1,i],par)
                 prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)                                        
                 interest[t,i] = (1-(Tda[t-1,i]>0))*par.r_m*d_prime[t-1,i] + (Tda[t-1,i]>0)*par.r_da*d_prime[t-1,i]
 
             # c. scale mortgage grid
             d_prime_high = par.q*h[t,i]
             grid_d_prime = np.linspace(0,d_prime_high,par.Nd)
-        
+
+            
             # d. optimal choices and post decision states
-            optimal_choice(i,i_y_,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],h_tilde[t,i:],
-                           h_prime[t,i:],d_prime[t,i:],grid_d_prime,Td_prime[t,i:],Tda_prime[t,i:],
+            optimal_choice(i,i_y_,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],
+                           h_tilde[t,i:],h_prime[t,i:],d_prime[t,i:],grid_d_prime,Td_prime[t,i:],Tda_prime[t,i:],
                            c[t,i:],a[t,i:],discrete[t,i:],sol,par)
             
 @njit            
-def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
-                   h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,
+def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
+                   h_tilde,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,
                    c,a,discrete,sol,par):
 
     # compute last period bequest motive
-        # instead m_gross, compute ab_trans
-
+        # instead m_gross, compute ab_trans???
+ 
     # a. compute gross cash-on-hand
-    m_gross_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
+    m_net_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
     m_gross_rent = m_gross_buy = m-d+(1-par.delta-par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)
-    m_gross_ref = m_gross_stay-d
-
+    m_gross_ref = m_net_stay-d
+        
     # b. find indices of discrete vars
     i_Td = int(Td - par.Td_bar)
     i_Tda = int(Tda)
@@ -157,7 +158,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
         # iii. stay and refinance
     if h != 0:
         i_h = np.where(par.grid_h == h)[0].item()
-        inv_v_stay = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.inv_v_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],d,m_gross_stay)    
+        inv_v_stay = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.inv_v_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],d,m_net_stay)    
         inv_v_ref = linear_interp.interp_1d(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_y_,:],m_gross_ref)    
     
     # d. find behaviour given discrete choice
@@ -224,16 +225,16 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
 
             ## consumption choice
             c[0] = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.c_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],
-                                           d,m_gross_stay)
+                                           d,m_net_stay)
 
             ## credit constrained? 
-            if c[0] > m_gross_stay:
-                c[0] = m_gross_stay
+            if c[0] > m_net_stay:
+                c[0] = m_net_stay
                 #if c[0] <= 0:
                     # do default
                 a[0] = 0.0
             else:
-                a[0] = m_gross_stay - c[0]
+                a[0] = m_net_stay - c[0]
 
 
         # oo. buy new house
@@ -296,16 +297,16 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,h_tilde,
 
             ## consumption choice
             c[0] = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.c_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],
-                                           d,m_gross_stay)
+                                           d,m_net_stay)
 
             ## credit constrained? 
-            if c[0] > m_gross_stay:
-                c[0] = m_gross_stay
+            if c[0] > m_net_stay:
+                c[0] = m_net_stay
                 #if c[0] <= 0:
                     # do default
                 a[0] = 0.0
             else:
-                a[0] = m_gross_stay - c[0]
+                a[0] = m_net_stay - c[0]
 
         # oo. stay and refinance
         elif discrete_choice == inv_v_ref: 
