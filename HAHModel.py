@@ -95,7 +95,7 @@ class HAHModelClass(EconModelClass):
         par.r = 0.02                                    # return on liquid assets
         par.r_m = par.r+0.0056                          # amortising mortgage interest rate     
         par.r_da = par.r_m+0.0008                       # deferred amortisation mortgage rate
-        par.omega_ltv = 0.8                             # loan-to-value ratio  
+        par.omega_ltv = 0.9                             # loan-to-value ratio  
         par.omega_dti = 4.5*np.ones(par.T)              # debt-to-income ratio working life
         par.omega_dti[par.Tr:] = 2.5                    # debt-to-income ratio retired
         par.Cp_ref = 0.017                              # proportional refinancing cost JEJA

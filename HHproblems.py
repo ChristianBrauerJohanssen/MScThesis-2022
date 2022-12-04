@@ -227,7 +227,7 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                                 prep_stay = linear_interp.interp_2d_prep(grid_d_prime,d_plus,par.Na)
                                 
                                 ## cash-on-hand
-                                for i_a in range(par.Na):                     # grid_d_prime instead of d_plus?
+                                for i_a in range(par.Na):                     
                                     m_plus_stay[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,grid_d_prime[i_dp],Td,Tda,par,t+1) - par.delta*par.q*h - mt.property_tax(par.q,h,par),par.a_max) 
                                     m_plus_gross_ref[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp],par.a_max))
                                     m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp] + (1-par.C_sell)*par.q*h,par.a_max))

@@ -44,10 +44,19 @@ def model_moments_targ(model):
     par = model.par
     sim = model.sim
 
-    # b. calculate the model moments
+    # b. name the moments
+    names = ['Aggregate net worth / (annual) labour income',
+             'Annual fraction of houses sold',
+             'Home ownership rate of <35 y.o.',
+             'Mean NW at age 75 / mean NW at age 55/50',
+             'Share of households leaving no bequest'
+             ]
+
+
+    # c. calculate the model moments
     model_moments = np.array([model.mean(), model.std(), model.max(), model.min(), model.sum()])
     
-    return model_moments   
+    return names, model_moments    
 
 def model_moments_untarg(model):
     """
@@ -63,9 +72,26 @@ def model_moments_untarg(model):
     par = model.par
     sim = model.sim
 
-    # b. calculate the model moments
+    # b. name the moments
+    names = ['Homeowner share',
+             'Mean house size',
+             'Average housing expenditure'
+             'Mean mortgage size',
+             'Share of homeowners with mortgage',
+             'DA mortgage share',
+             'Average LTV ratio',
+             'Average DTI ratio',
+             'Gini coefficient',
+             'Mean CEV',
+             ]
+
+    # c. calculate the model moments
+    
+    
     model_moments = np.array([model.mean(), model.std(), model.max(), model.min(), model.sum()])
     
-    return model_moments    
+
+
+    return names, model_moments    
 
 

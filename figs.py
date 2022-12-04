@@ -5,10 +5,12 @@
 # a. standard packages
 import numpy as np
 import math
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 import ipywidgets as widgets
+
 import seaborn as sns
 sns.set_style("whitegrid")
 prop_cycle = plt.rcParams["axes.prop_cycle"]
@@ -29,8 +31,9 @@ import utility
 def lifecycle_full(model,quantiles:bool=False):
     '''
     Plot the lifecycle of the model.
-    Keyword arguments:
-    quantiles -- if True, plot quantiles instead of mean + quantiles
+    
+    kwargs:
+        quantiles: boolean, if True, plot quantiles instead of mean + quantiles
     '''
     # a. unpack
     par = model.par
@@ -40,9 +43,7 @@ def lifecycle_full(model,quantiles:bool=False):
     fig = plt.figure(figsize=(12,12))
 
     simvarlist = [('y','$y_t$ - mean pre-tax income'),
-                  #('h','$h_{t-1}$ - mean house size beg.'),
                   ('h_prime','$h_t$ - mean house size'),
-                  #('d','$d_t$ - mean debt beg.'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
                   ('m','$m_t$ - mean cash on hand beg.'),
                   ('c','$c_t$ - mean consumption '),
@@ -144,7 +145,9 @@ def homeownership(model):
     plt.show()
 
 def nw_and_tc(model):
-    
+    """ 
+    Plots net worth and the user cost of housing over the life cycle
+    """
     # a. unpack
     par = model.par
     sim = model.sim
@@ -189,13 +192,68 @@ def nw_and_tc(model):
     ax.plot(age,np.mean(trans_cost,axis=1),lw=2)
     ax.set_title('mean transaction costs',fontsize=14);
 
+def example_household(model,hh_no):
+    """ 
+    plots decisions, assets, and income for a given household
+
+    args:
+        model: model object
+        hh_no: household number
+    """
+    
+    # a. unpack
+    sim = model.sim
+    par = model.par
+
+    assert hh_no < par.simN, f'hh_no must be in the interval {0,par.simN}'
+
+    x_ax = np.arange(par.T)+par.Tmin
+
+    # simulation output
+    dp = sim.d_prime[:,hh_no]
+    y = sim.y[:,hh_no]
+    hp = sim.h_prime[:,hh_no]
+    discrete = sim.discrete[:,hh_no]
+    DA = sim.Tda_prime[:,hh_no]
+    a = sim.a[:,hh_no]
+    c = sim.c[:,hh_no]
+    
+    # plots
+    fig = plt.figure(figsize=(12,8))
+    
+    ax1 = fig.add_subplot(2,2,1)
+    ax1.plot(x_ax,c,label='$c_t$')
+    ax1.plot(x_ax,dp,label='$d^{\prime}_t$')
+    ax1.plot(x_ax,hp,label='$h_t$')
+    ax1.legend()
+    ax1.set_title(f'simulated continious choices for household number {hh_no}')
+    
+    ax2 = fig.add_subplot(2,2,2)
+    ax2.plot(x_ax,y,label='$y_t$')
+    ax2.plot(x_ax,a,label='$a_t$')
+    ax2.legend()
+    ax2.set_title(f'simulated income and assets for household number {hh_no}')
+    
+    ax3 = fig.add_subplot(2,2,3)
+    ax3.plot(x_ax,DA,label='$T^{DA}_t$')
+    ax3.plot(x_ax,discrete,label='discrete choice')
+    ax3.set_title(f'simulated discrete choices for household number {hh_no}')
+    ax3.legend()
+    
+    #ax4 = fig.add_subplot(2,2,4)
+    #ax4.plot(x_ax,c,label='consumption')
+    fig.tight_layout()
+    plt.show();
+
 
 ##################
 # model vs. data #
 ##################
 
-def lifecycle_consav(model,c_data,nw_data):
-    
+def lifecycle_consav(model):
+    """
+    plot the life cycle profiles of consumption and net wealth and compare with data
+    """
     # a. unpack
     par = model.par
     sim = model.sim
@@ -206,26 +264,41 @@ def lifecycle_consav(model,c_data,nw_data):
     c_model = sim.c 
     nw_model = sim.a + sim.h_prime - sim.d_prime
 
-    # c. plot
+    # c. prep data input
+    c_data = pd.read_excel(
+    io='LifeCycleData.xlsx',
+    sheet_name='ConsumptionOutput').to_numpy()
+
+    nw_data = pd.read_excel(
+        io='LifeCycleData.xlsx',
+        sheet_name='NetWealthOutput').to_numpy()
+
+    # d. plot
     fig = plt.figure(figsize=(12,6))
 
     ax_c = fig.add_subplot(1,2,1)
     ax_c.plot(age,np.mean(c_model,axis=1),lw=2,label='model')
     ax_c.plot(c_data[:,0],c_data[:,1],linestyle='-',marker=".",label='data')
     ax_c.legend()
+    ax_c.set_xlabel('age')
+    ax_c.xaxis.set_ticks(age[::5])
 
     ax_nw = fig.add_subplot(1,2,2)
     ax_nw.plot(age,np.mean(nw_model,axis=1),lw=2,label='model')
     ax_nw.plot(nw_data[:,0],nw_data[:,1],linestyle='-',marker=".",label='data')
     ax_nw.legend()
+    ax_nw.set_xlabel('age')
+    ax_nw.xaxis.set_ticks(age[::5])
 
     # d. save and show   
     plt.tight_layout()
     plt.savefig('output/lifecycle_consav.png')
     plt.show()
 
-def lifecycle_housing(model,ho_data,hexp_data):
-    
+def lifecycle_housing(model):
+    """
+    plot homeownership share and mean housing expenditure over the lifecycle and compare with data
+    """
     # a. unpack
     par = model.par
     sim = model.sim
@@ -237,27 +310,40 @@ def lifecycle_housing(model,ho_data,hexp_data):
 
     rent_cost = bool_rent*par.q_r*sim.h_tilde
     own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest
-    hexp_model  = rent_cost + own_cost 
+    hexp_model  = rent_cost + own_cost  
 
-    # c. plot
+    # c. prep data input
+    hexp_data = pd.read_excel(
+    io='LifeCycleData.xlsx',
+    sheet_name='HexpOutput').to_numpy()
+
+    ho_data = pd.read_excel(
+        io='LifeCycleData.xlsx',
+        sheet_name='HoOutput').to_numpy()
+
+    # d. plot
     fig = plt.figure(figsize=(12,6))
 
     ax_ho = fig.add_subplot(1,2,1)
     ax_ho.plot(age,np.mean(ho_model,axis=1),lw=2,label='model')
     ax_ho.plot(ho_data[:,0],ho_data[:,1],linestyle='-',marker=".",label='data')
     ax_ho.legend()
+    ax_ho.set_xlabel('age')
+    ax_ho.xaxis.set_ticks(age[::5])
 
     ax_hexp = fig.add_subplot(1,2,2)
     ax_hexp.plot(age,np.mean(hexp_model,axis=1),lw=2,label='model')
     ax_hexp.plot(hexp_data[:,0],hexp_data[:,1],linestyle='-',marker=".",label='data')
     ax_hexp.legend()
+    ax_hexp.set_xlabel('age')
+    ax_hexp.xaxis.set_ticks(age[::5])
 
     # d. save and show   
     plt.tight_layout()
     plt.savefig('output/lifecycle_housing.png')
     plt.show()
 
-def lifecycle_mortgage(model,d_data):
+def lifecycle_mortgage(model):
     
     # a. unpack
     par = model.par
@@ -274,17 +360,26 @@ def lifecycle_mortgage(model,d_data):
 
     DA_shares = np.sum(b_dp_da,axis=1)/np.sum(bool_dp,axis=1)
 
-    # c. plot
+    # c. prep data input
+    d_data = pd.read_excel(
+        io='LifeCycleData.xlsx',
+        sheet_name='MortgageOutput').to_numpy()
+    
+    # d. plot
     fig = plt.figure(figsize=(12,6))
 
     ax_d = fig.add_subplot(1,2,1)
     ax_d.plot(age,np.mean(d_model,axis=1),lw=2,label='model')
     ax_d.plot(d_data[:,0],d_data[:,1],linestyle='-',marker=".",label='data')
     ax_d.legend()
+    ax_d.set_xlabel('age')
+    ax_d.xaxis.set_ticks(age[::5])
 
     ax_da = fig.add_subplot(1,2,2)
     ax_da.plot(age,DA_shares,lw=2,label='model')
     ax_da.legend()
+    ax_da.set_xlabel('age')
+    ax_da.xaxis.set_ticks(age[::5])
 
     # d. save and show   
     plt.tight_layout()
@@ -294,6 +389,7 @@ def lifecycle_mortgage(model,d_data):
 ##################
 # decision funcs #
 ##################
+
 def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_ht,name):
 
     #if name == 'discrete':
@@ -310,6 +406,9 @@ def _decision_functions(model,t,i_h,i_d,i_Td,i_Tda,i_w,i_ht,name):
         _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w)        
 
 def decision_functions(model):
+    """ 
+    Plots interactive decision functions for the model
+    """
     widgets.interact(_decision_functions,
         model=widgets.fixed(model),
         t=widgets.Dropdown(description='t', 
@@ -533,13 +632,47 @@ def _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w):
     plt.show()
 
 
+#####################
+# calibration input #
+#####################
+
+def n_chi_iniwealth(data):
+    """
+    plot equivalence scale, income profile, and initial wealth
+    
+    args:
+        data: a pandas dataframe with columns 'n', 'chi', 'wealth' and 't_plus_Tmin' (age)
+    """
+
+    # prep data
+    age = data['t_plus_Tmin']
+    n = data['n']
+    chi = data['chi']
+
+    # plot data
+    fig = plt.figure(figsize=(12,4))
+    
+    ax1 = fig.add_subplot(121)
+    ax1.plot(age,n)
+    ax1.set_xlabel('age')
+    ax1.xaxis.set_ticks(age[::5])
+
+    ax2 = fig.add_subplot(122)
+    ax2.plot(age,chi)
+    ax2.set_xlabel('age')
+    ax2.xaxis.set_ticks(age[::5]);
+
+    # layout and save
+    fig.tight_layout()
+    fig.savefig('output/calib_figs.png')
+
+
 #########################################################################################################
 
 
 ###################
 # MPCs (old code) #
 ###################
-
 def mpc_over_cash_on_hand(model):
     '''plot mpc as a function of cash-on-hand for given t'''
     p_bar = np.mean(model.sim.p,axis=1)
