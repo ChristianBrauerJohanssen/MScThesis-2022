@@ -126,9 +126,6 @@ def lifecycle(sim,sol,par):
 def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
                    h_tilde,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,
                    c,a,discrete,sol,par):
-
-    # compute last period bequest motive
-        # instead m_gross, compute ab_trans???
  
     # a. compute gross cash-on-hand
     m_net_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
@@ -153,14 +150,16 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             h_tilde_best = par.grid_htilde[i_ht_best]     
         
         # ii. buy  
-    inv_v_buy = linear_interp.interp_1d(par.grid_x,sol.inv_v_buy_fast[t,i_y_,:],m_gross_buy) 
+    #inv_v_buy = linear_interp.interp_1d(par.grid_x,sol.inv_v_buy_fast[t,i_y_,:],m_gross_buy) 
+    inv_v_buy = interp_kink_1d(sol,par,t,0,i_y_,i_m_gross_buy,m_gross_buy,buy=1)
 
         # iii. stay and refinance
     if h != 0:
         i_h = np.where(par.grid_h == h)[0].item()
         inv_v_stay = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.inv_v_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],d,m_net_stay)    
-        inv_v_ref = linear_interp.interp_1d(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_y_,:],m_gross_ref)    
-    
+        #inv_v_ref = linear_interp.interp_1d(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_y_,:],m_gross_ref)    
+        inv_v_ref = interp_kink_1d(sol,par,t,i_h,i_y_,i_m_gross_ref,m_gross_ref,buy=0)
+
     # d. find behaviour given discrete choice
     if h == 0: # cannot stay nor refinance if you have no house
         discrete_choice = np.amax(np.array([inv_v_buy,inv_v_rent]))
@@ -496,3 +495,20 @@ def find_nearest(array,value):
         return n-1
     else:
         return jl
+
+@njit
+def interp_kink_1d(sol,par,t,i_h,i_y_,i_m_gross,m_gross,buy=0):
+    """ take into account kinks in buyer and refinancer value functions """
+    if m_gross < par.grid_x[i_m_gross]: 
+        i_m_gross -= 1
+        
+    if buy == 0: 
+        if sol.inv_v_ref_fast[t,i_h,i_y_,i_m_gross] > 0:
+            return linear_interp.interp_1d(par.grid_x,sol.inv_v_ref_fast[t,i_h,i_y_,:],m_gross) 
+        else:
+            return 0
+    else:
+        if sol.inv_v_buy_fast[t,i_y_,i_m_gross] > 0:
+            return linear_interp.interp_1d(par.grid_x,sol.inv_v_buy_fast[t,i_y_,:],m_gross) 
+        else:
+            return 0

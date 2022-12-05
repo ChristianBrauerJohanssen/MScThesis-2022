@@ -22,6 +22,7 @@ from consav import linear_interp
 
 # c. local modules
 import utility
+import analyse
 
 
 #################
@@ -40,13 +41,12 @@ def lifecycle_full(model,quantiles:bool=False):
     sim = model.sim
 
     # b. figure
-    fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(12,8))
 
-    simvarlist = [('y','$y_t$ - mean pre-tax income'),
-                  ('h_prime','$h_t$ - mean house size'),
+    simvarlist = [('h_prime','$h_t$ - mean house size'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
-                  ('m','$m_t$ - mean cash on hand beg.'),
                   ('c','$c_t$ - mean consumption '),
+                  #('m','$m_t$ - mean cash on hand beg.'),
                   ('a','$a_t$ - mean liquids assets post'),                  
                   ]
 
@@ -226,23 +226,24 @@ def example_household(model,hh_no):
     ax1.plot(x_ax,dp,label='$d^{\prime}_t$')
     ax1.plot(x_ax,hp,label='$h_t$')
     ax1.legend()
-    ax1.set_title(f'simulated continious choices for household number {hh_no}')
+    #ax1.set_title(f'simulated continuous choices for household number {hh_no}')
     
     ax2 = fig.add_subplot(2,2,2)
     ax2.plot(x_ax,y,label='$y_t$')
     ax2.plot(x_ax,a,label='$a_t$')
     ax2.legend()
-    ax2.set_title(f'simulated income and assets for household number {hh_no}')
+    #ax2.set_title(f'simulated income and assets for household number {hh_no}')
     
     ax3 = fig.add_subplot(2,2,3)
     ax3.plot(x_ax,DA,label='$T^{DA}_t$')
     ax3.plot(x_ax,discrete,label='discrete choice')
-    ax3.set_title(f'simulated discrete choices for household number {hh_no}')
+    #ax3.set_title(f'simulated discrete choices for household number {hh_no}')
     ax3.legend()
     
     #ax4 = fig.add_subplot(2,2,4)
     #ax4.plot(x_ax,c,label='consumption')
     fig.tight_layout()
+    plt.savefig('output/example_household.png')
     plt.show();
 
 
@@ -281,6 +282,7 @@ def lifecycle_consav(model):
     ax_c.plot(c_data[:,0],c_data[:,1],linestyle='-',marker=".",label='data')
     ax_c.legend()
     ax_c.set_xlabel('age')
+    ax_c.set_ylabel('$c_t$')
     ax_c.xaxis.set_ticks(age[::5])
 
     ax_nw = fig.add_subplot(1,2,2)
@@ -288,6 +290,7 @@ def lifecycle_consav(model):
     ax_nw.plot(nw_data[:,0],nw_data[:,1],linestyle='-',marker=".",label='data')
     ax_nw.legend()
     ax_nw.set_xlabel('age')
+    ax_nw.set_ylabel('net wealth')
     ax_nw.xaxis.set_ticks(age[::5])
 
     # d. save and show   
@@ -297,7 +300,7 @@ def lifecycle_consav(model):
 
 def lifecycle_housing(model):
     """
-    plot homeownership share and mean housing expenditure over the lifecycle and compare with data
+    plot homeowner share and mean housing expenditure over the lifecycle and compare with data
     """
     # a. unpack
     par = model.par
@@ -329,14 +332,19 @@ def lifecycle_housing(model):
     ax_ho.plot(ho_data[:,0],ho_data[:,1],linestyle='-',marker=".",label='data')
     ax_ho.legend()
     ax_ho.set_xlabel('age')
+    ax_ho.set_ylabel('homeowner share')
     ax_ho.xaxis.set_ticks(age[::5])
+    ax_ho.set_ylim(0,1)
 
     ax_hexp = fig.add_subplot(1,2,2)
     ax_hexp.plot(age,np.mean(hexp_model,axis=1),lw=2,label='model')
     ax_hexp.plot(hexp_data[:,0],hexp_data[:,1],linestyle='-',marker=".",label='data')
     ax_hexp.legend()
     ax_hexp.set_xlabel('age')
+    ax_hexp.set_ylabel('mean housing expenditure')
+    ax_hexp.set_ylim(0.02,0.12)
     ax_hexp.xaxis.set_ticks(age[::5])
+
 
     # d. save and show   
     plt.tight_layout()
@@ -373,12 +381,14 @@ def lifecycle_mortgage(model):
     ax_d.plot(d_data[:,0],d_data[:,1],linestyle='-',marker=".",label='data')
     ax_d.legend()
     ax_d.set_xlabel('age')
+    ax_d.set_ylabel('$d\prime_t$')
     ax_d.xaxis.set_ticks(age[::5])
 
     ax_da = fig.add_subplot(1,2,2)
     ax_da.plot(age,DA_shares,lw=2,label='model')
     ax_da.legend()
     ax_da.set_xlabel('age')
+    ax_da.set_ylabel('DA mortgage share')
     ax_da.xaxis.set_ticks(age[::5])
 
     # d. save and show   
@@ -636,33 +646,46 @@ def _v_bar(model,t,i_h,i_d,i_Td,i_Tda,i_w):
 # calibration input #
 #####################
 
-def n_chi_iniwealth(data):
+def n_chi_iniwealth(model,data):
     """
     plot equivalence scale, income profile, and initial wealth
     
     args:
+        model: a HAH model object
         data: a pandas dataframe with columns 'n', 'chi', 'wealth' and 't_plus_Tmin' (age)
     """
 
-    # prep data
+    # a. prep data
     age = data['t_plus_Tmin']
     n = data['n']
     chi = data['chi']
+    _,ini_lorenz = analyse.gini_lorenz(model.sim.a0)
+    percentiles = np.arange(model.par.simN)/(10**5)
 
-    # plot data
+    # b. plot data
     fig = plt.figure(figsize=(12,4))
     
-    ax1 = fig.add_subplot(121)
+    ax1 = fig.add_subplot(131)
     ax1.plot(age,n)
     ax1.set_xlabel('age')
-    ax1.xaxis.set_ticks(age[::5])
+    ax1.set_ylabel('$n_t$')
+    ax1.xaxis.set_ticks(age[::10])
 
-    ax2 = fig.add_subplot(122)
+    ax2 = fig.add_subplot(132)
     ax2.plot(age,chi)
     ax2.set_xlabel('age')
-    ax2.xaxis.set_ticks(age[::5]);
+    ax2.set_ylabel('$\chi_t$')
+    ax2.xaxis.set_ticks(age[::10]);
 
-    # layout and save
+    ax3 = fig.add_subplot(133)
+    ax3.plot(percentiles,ini_lorenz)
+    ax3.set_xlabel('percentiles')
+    ax3.set_ylabel('cumulative initial wealth share')
+    ax3.set_ylim([0,1])
+    ax3.xaxis.set_ticks([0.0,0.2,0.4,0.6,0.8,1.0])
+    ax3.yaxis.set_ticks([0.0,0.2,0.4,0.6,0.8,1.0])
+
+    # c. layout and save
     fig.tight_layout()
     fig.savefig('output/calib_figs.png')
 

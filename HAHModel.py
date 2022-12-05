@@ -133,14 +133,14 @@ class HAHModelClass(EconModelClass):
         par.Nhtilde = 3                                 # points in rental house size grid
         par.htilde_min = 1.07                           # minimum rental house size
         par.htilde_max = 1.89                           # maximum rental house size
-        par.Nd = 10                                     # points in mortgage balance grid
-        par.Nm = 15                                     # points in cash on hand grid
-        par.Nx = 20                                     # points in gross resources grid
-        par.Na = 15                                     # points in assets grid
+        par.Nd = 20                                     # points in mortgage balance grid
+        par.Nm = 30                                     # points in cash on hand grid
+        par.Nx = 45                                     # points in gross resources grid
+        par.Na = 30                                     # points in assets grid
         par.m_max = 15.0                                # maximum cash-on-hand
         par.x_max = 15.0                                # maximum gross resources
         par.x_min = -7.0                                # minimum gross resources (before refinancing)
-        par.a_max = par.m_max+1.0                       # maximum assets
+        par.a_max = par.m_max                           # maximum assets
 
         # i. simulation
         par.mu_a0 = 0.8                                 # mean initial assets
@@ -591,7 +591,7 @@ class HAHModelClass(EconModelClass):
 #       figs.egm(self)
 
     def fig_lifecycle(self,quantiles=False):        
-        figs.lifecycle(self,quantiles=quantiles)
+        figs.lifecycle_full(self,quantiles=quantiles)
     def fig_homeownership(self):
         figs.homeownership(self)
     def fig_decision_functions(self):
