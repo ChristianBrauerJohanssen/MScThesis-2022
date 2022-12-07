@@ -587,22 +587,29 @@ class HAHModelClass(EconModelClass):
     #    figures   #
     ################
 
-#   def egm(self):        
-#       figs.egm(self)
-
-    def fig_lifecycle(self,quantiles=False):        
+    def fig_lifecycle_full(self,quantiles=False):        
         figs.lifecycle_full(self,quantiles=quantiles)
+
+    def fig_lifecycle_consav(self):
+        figs.lifecycle_consav(self)
+
+    def fig_lifecycle_housing(self):
+        figs.lifecycle_housing(self)
+
+    def fig_lifecycle_mortgage(self):
+        figs.lifecycle_mortgage(self)
+    
     def fig_homeownership(self):
         figs.homeownership(self)
+
     def fig_decision_functions(self):
         figs.decision_functions(self)
     
-    #def mpc_over_cash_on_hand(self):
-    #    figs.mpc_over_cash_on_hand(self)
-    #def mpc_over_lifecycle(self):
-    #    figs.mpc_over_lifecycle(self)
+    def fig_example_household(self,hh_no=0):
+        figs.example_household(self,hhno=hh_no)
 
-
+    def fig_n_chi_iniwealth(self):
+        figs.n_chi_iniwealth(self)
     ################
     #    tables    #
     ################

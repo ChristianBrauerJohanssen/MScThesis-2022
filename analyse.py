@@ -44,32 +44,37 @@ def gini_lorenz(x):
     
     return gini, lorenz
 
-@njit(parallel=True)
-def calc_utility_cev_adjusted(sim,par,utility,guess,n):
+@njit
+def calc_utility_cev_adjusted(sim,par,utility_temp,guess,n):
     """ calculate utility for each individual taking into account the CEV guess """
 
     # unpack
-    u = utility
+    u = utility_temp
     
     for t in range(par.T):
-        # stayers and refinancers
-        if sim.h_prime[t,n] > 0 and sim.h_prime[t,n] == sim.h[t,n]: 
+        # stayers
+        if sim.discrete[t,n] == 0: 
             move = 0
             rent = 0
-            u[n] += par.beta**t*utility.func(guess*sim.c[t,n],sim.h[t,n],move,rent,t,par)
-        #  buyers
-        elif sim.h_prime[t,n] > 0 and sim.h_prime[t,n] != sim.h[t,n]:
+            u[n] += par.beta**t*utility.func(guess*sim.c[t,n],sim.h_prime[t,n],move,rent,t,par)
+        # refinancers 
+        elif sim.discrete[t,n] == 1:
+            move = 0
+            rent = 0
+            u[n] += par.beta**t*utility.func(guess*sim.c[t,n],sim.h_prime[t,n],move,rent,t,par)
+        # buyers
+        elif sim.discrete[t,n] == 2:
             move = 1
             rent = 0
-            u[n] += par.beta**t*utility.func(guess*sim.c[t,n],sim.h[t,n],move,rent,t,par)
+            u[n] += par.beta**t*utility.func(guess*sim.c[t,n],sim.h_prime[t,n],move,rent,t,par)
         # renters
-        elif sim.h_prime[t,n] == 0:
+        elif sim.discrete[t,n] == 3:
             move = 0
             rent = 1
             u[n] += par.beta**t*utility.func(guess*sim.c[t,n],sim.h_tilde[t,n],move,rent,t,par)
 
-@njit
-def cev(model1,model2,guess=1):
+@njit(parallel=True)
+def cev(sim1,sim2,par1,par2,guess=1):
     """ compute ex ante consumption equivalent variation as in Sommer and Sullivan (2018). Note that
     the computation holds all variables and choices constant except for consumption. 
     
@@ -79,37 +84,32 @@ def cev(model1,model2,guess=1):
         guess: a guess for the relative consumption change
     """
 
-    # a. unpack
-    utility1 = model1.sim.utility # baseline sum of discounted utility of size (1,simN)
-    guess_vec = np.ones(model1.par.simN)*guess # a vector of size (1,simN) with the guess
-
-    # b. compute the CEV
-    with jit(model2) as model:
-        par = model.par
-        sim = model.sim
-
-        # i. compute the utility of the counterfactual model for each individual
-        utility_new = np.nan(par.simN)
-        for n in prange(par.simN):
+    # a. unpack and prep
+    utility1 = sim1.utility # baseline sum of discounted utility of size (1,simN)
+    guess_vec = np.ones(par1.simN)*guess # a vector of size (1,simN) with the guess
+        
+    # i. compute the utility of the counterfactual model for each individual
+    utility_new = np.zeros(par1.simN)
+    for n in prange(par1.simN):
+        
+        iter = 0
+        while np.abs(utility1[n]-utility_new[n]) > par1.tol and iter <= par1.max_iter_simulate:
             
-            iter = 0
-            while np.abs(utility1[n]-utility_new[n]) > par.tol and iter <= par.max_iter_simulate:
-                
-                utility_new[n] = 0
-                calc_utility_cev_adjusted(sim,par,utility_new,guess_vec[n],n)
-                
-                # check if baseline and counterfactual utility are unequal
-                if utility1[n] != utility_new[n]:
-                    # update guess
-                    guess_vec[n] = utility1[n]/utility_new[n]
-                # update counter
-                iter += 1            
+            utility_new[n] = 0
+            calc_utility_cev_adjusted(sim2,par2,utility_new,guess_vec[n],n)
+            
+            # check if baseline and counterfactual utility are unequal
+            if utility1[n] != utility_new[n]:
+                # update guess
+                guess_vec[n] = utility1[n]/utility_new[n]
+            # update counter
+            iter += 1            
 
-        # check if convergence was achieved for all individuals
-        if np.any(np.abs(utility1-utility_new) > par.tol):
-            raise ValueError('CEV computation did not converge for all individuals')
+    # check if convergence was achieved for all individuals
+    if np.any(np.abs(utility1-utility_new) > par1.tol):
+        raise ValueError('CEV computation did not converge for all individuals')
 
-        return guess_vec
+    return guess_vec
 
 def model_moments_targ(model):
     """
@@ -130,7 +130,8 @@ def model_moments_targ(model):
              'Annual fraction of houses sold',
              'Home ownership rate of <35 y.o.',
              'Mean NW at age 75 / mean NW at age 55/50',
-             'Share of households leaving no bequest'
+             'Share of households leaving no bequest',
+             'Taxes to labour income'
              ]
 
     # c. prep calculations
@@ -138,6 +139,8 @@ def model_moments_targ(model):
     mean_nw_age = np.mean(sim.a + sim.h_prime - sim.d_prime,axis=1)
     bool_da_last = sim.Tda_prime[par.T-2,:] > 0
     bequest_mat = (1+par.r)*sim.a[par.T-1,:] + (1-par.delta)*par.q*sim.h_prime[par.T-1,:] - bool_da_last*(1+par.r_da)*sim.d_prime[par.T-1,:] - (1-bool_da_last)*(1+par.r_m)*sim.d_prime[par.T-1,:]
+    tax_to_inc = np.sum(sim.inc_tax)/np.sum(sim.y)
+    
 
     # c. calculate the model moments
     nw_to_y = mean_nw/np.mean(sim.y)
@@ -150,7 +153,8 @@ def model_moments_targ(model):
                             h_share_sold,
                             ho_u35,
                             nw_75_55,
-                            no_beq_share])
+                            no_beq_share,
+                            tax_to_inc])
     
     return names, model_moments    
 

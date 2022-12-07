@@ -255,6 +255,9 @@ def lifecycle_consav(model):
     """
     plot the life cycle profiles of consumption and net wealth and compare with data
     """
+    fs = 14
+    fs_ticks = 12
+
     # a. unpack
     par = model.par
     sim = model.sim
@@ -280,19 +283,21 @@ def lifecycle_consav(model):
     ax_c = fig.add_subplot(1,2,1)
     ax_c.plot(age,np.mean(c_model,axis=1),lw=2,label='model')
     ax_c.plot(c_data[:,0],c_data[:,1],linestyle='-',marker=".",label='data')
-    ax_c.legend()
-    ax_c.set_xlabel('age')
-    ax_c.set_ylabel('$c_t$')
+    ax_c.legend(fontsize=fs_ticks)
+    ax_c.set_xlabel('age',fontsize=fs)
+    ax_c.set_ylabel('$c_t$',fontsize=fs)
     ax_c.xaxis.set_ticks(age[::5])
     ax_c.set_ylim(0,0.7)
+    ax_c.tick_params(axis='both', labelsize=fs_ticks)
 
     ax_nw = fig.add_subplot(1,2,2)
     ax_nw.plot(age,np.mean(nw_model,axis=1),lw=2,label='model')
     ax_nw.plot(nw_data[:,0],nw_data[:,1],linestyle='-',marker=".",label='data')
-    ax_nw.legend()
-    ax_nw.set_xlabel('age')
-    ax_nw.set_ylabel('net wealth')
+    ax_nw.legend(fontsize=fs_ticks)
+    ax_nw.set_xlabel('age',fontsize=fs)
+    ax_nw.set_ylabel('net wealth',fontsize=fs)
     ax_nw.xaxis.set_ticks(age[::5])
+    ax_nw.tick_params(axis='both', labelsize=fs_ticks)
 
     # d. save and show   
     plt.tight_layout()
@@ -303,6 +308,9 @@ def lifecycle_housing(model):
     """
     plot homeowner share and mean housing expenditure over the lifecycle and compare with data
     """
+    fs = 14
+    fs_ticks = 12
+
     # a. unpack
     par = model.par
     sim = model.sim
@@ -331,20 +339,22 @@ def lifecycle_housing(model):
     ax_ho = fig.add_subplot(1,2,1)
     ax_ho.plot(age,np.mean(ho_model,axis=1),lw=2,label='model')
     ax_ho.plot(ho_data[:,0],ho_data[:,1],linestyle='-',marker=".",label='data')
-    ax_ho.legend()
-    ax_ho.set_xlabel('age')
-    ax_ho.set_ylabel('homeowner share')
+    ax_ho.legend(fontsize=fs_ticks)
+    ax_ho.set_xlabel('age',fontsize=fs)
+    ax_ho.set_ylabel('homeowner share',fontsize=fs)
     ax_ho.xaxis.set_ticks(age[::5])
     ax_ho.set_ylim(0,1)
+    ax_ho.tick_params(axis='both', labelsize=fs_ticks)
 
     ax_hexp = fig.add_subplot(1,2,2)
     ax_hexp.plot(age,np.mean(hexp_model,axis=1),lw=2,label='model')
     ax_hexp.plot(hexp_data[:,0],hexp_data[:,1],linestyle='-',marker=".",label='data')
-    ax_hexp.legend()
-    ax_hexp.set_xlabel('age')
-    ax_hexp.set_ylabel('mean housing expenditure')
+    ax_hexp.legend(fontsize=fs_ticks)
+    ax_hexp.set_xlabel('age',fontsize=fs)
+    ax_hexp.set_ylabel('mean housing expenditure',fontsize=fs)
     ax_hexp.set_ylim(0.02,0.12)
     ax_hexp.xaxis.set_ticks(age[::5])
+    ax_hexp.tick_params(axis='both', labelsize=fs_ticks)
 
 
     # d. save and show   
@@ -353,7 +363,11 @@ def lifecycle_housing(model):
     plt.show()
 
 def lifecycle_mortgage(model):
+    """ plot mean mortgage balance and share of DA mortgages over the lifecycle and compare with data """
     
+    fs = 14
+    fs_ticks = 12
+
     # a. unpack
     par = model.par
     sim = model.sim
@@ -380,17 +394,19 @@ def lifecycle_mortgage(model):
     ax_d = fig.add_subplot(1,2,1)
     ax_d.plot(age,np.mean(d_model,axis=1),lw=2,label='model')
     ax_d.plot(d_data[:,0],d_data[:,1],linestyle='-',marker=".",label='data')
-    ax_d.legend()
-    ax_d.set_xlabel('age')
-    ax_d.set_ylabel('$d\prime_t$')
+    ax_d.legend(fontsize=fs_ticks)
+    ax_d.set_xlabel('age',fontsize=fs)
+    ax_d.set_ylabel('$d^{\prime}_t$',fontsize=fs)
     ax_d.xaxis.set_ticks(age[::5])
+    ax_d.tick_params(axis='both', labelsize=fs_ticks)
 
     ax_da = fig.add_subplot(1,2,2)
     ax_da.plot(age,DA_shares,lw=2,label='model')
-    ax_da.legend()
-    ax_da.set_xlabel('age')
-    ax_da.set_ylabel('DA mortgage share')
+    ax_da.legend(fontsize=fs_ticks)
+    ax_da.set_xlabel('age',fontsize=fs)
+    ax_da.set_ylabel('DA mortgage share',fontsize=fs)
     ax_da.xaxis.set_ticks(age[::5])
+    ax_da.tick_params(axis='both', labelsize=fs_ticks)
 
     # d. save and show   
     plt.tight_layout()
@@ -529,7 +545,7 @@ def _ref(model,t,i_h,i_w):
 
     # d. plot mortgage balance
     ax_d.plot(par.grid_x,sol.d_prime_ref_fast[t,i_h,i_w,:],lw=2)
-    ax_d.set_title(f'$d\prime^{{ref}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
+    ax_d.set_title(f'$d^{{\prime,ref}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$, $h={par.grid_h[i_h]}$)',pad=10)
 
     # e. plot DA periods
     ax_Tda.plot(par.grid_x,sol.Tda_prime_ref_fast[t,i_h,i_w,:],lw=2)
@@ -568,11 +584,11 @@ def _buy(model,t,i_w):
 
     # d. plot housing choice
     ax_h.plot(par.grid_x,sol.h_buy_fast[t,i_w,:],lw=2)
-    ax_h.set_title(f'$h\prime^{{buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+    ax_h.set_title(f'$h^{{\prime,buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
 
     # e. plot mortgage balance
     ax_d.plot(par.grid_x,sol.d_prime_buy_fast[t,i_w,:],lw=2)
-    ax_d.set_title(f'$d\prime^{{buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
+    ax_d.set_title(f'$d^{{\prime,buy}}$ ($t={t}$, $w={par.grid_w[i_w]:.2f}$)',pad=10)
 
     # f. plot DA periods
     ax_Tda.plot(par.grid_x,sol.Tda_prime_buy_fast[t,i_w,:],lw=2)
@@ -655,36 +671,41 @@ def n_chi_iniwealth(model,data):
         model: a HAH model object
         data: a pandas dataframe with columns 'n', 'chi', 'wealth' and 't_plus_Tmin' (age)
     """
-
+    
     # a. prep data
     age = data['t_plus_Tmin']
     n = data['n']
     chi = data['chi']
     _,ini_lorenz = analyse.gini_lorenz(model.sim.a0)
-    percentiles = np.arange(model.par.simN)/(10**5)
+    percentiles = np.arange(model.par.simN)/(10**3)
 
     # b. plot data
+    fs = 14
+    fs_ticks = 12
     fig = plt.figure(figsize=(12,4))
     
     ax1 = fig.add_subplot(131)
     ax1.plot(age,n)
-    ax1.set_xlabel('age')
-    ax1.set_ylabel('$n_t$')
+    ax1.set_xlabel('age',fontsize=fs)
+    ax1.set_ylabel('$n_t$',fontsize=fs)
     ax1.xaxis.set_ticks(age[::10])
+    ax1.tick_params(axis='both', labelsize=fs_ticks)
 
     ax2 = fig.add_subplot(132)
     ax2.plot(age,chi)
-    ax2.set_xlabel('age')
-    ax2.set_ylabel('$\chi_t$')
-    ax2.xaxis.set_ticks(age[::10]);
+    ax2.set_xlabel('age',fontsize=fs)
+    ax2.set_ylabel('$\chi_t$',fontsize=fs)
+    ax2.xaxis.set_ticks(age[::10])
+    ax2.tick_params(axis='both', labelsize=fs_ticks)
 
     ax3 = fig.add_subplot(133)
     ax3.plot(percentiles,ini_lorenz)
-    ax3.set_xlabel('percentiles')
-    ax3.set_ylabel('cumulative initial wealth share')
+    ax3.set_xlabel('percentiles',fontsize=fs)
+    ax3.set_ylabel('cumulative initial wealth share',fontsize=fs)
     ax3.set_ylim([0,1])
-    ax3.xaxis.set_ticks([0.0,0.2,0.4,0.6,0.8,1.0])
+    ax3.xaxis.set_ticks([0,20,40,60,80,100])
     ax3.yaxis.set_ticks([0.0,0.2,0.4,0.6,0.8,1.0])
+    ax3.tick_params(axis='both', labelsize=fs_ticks)
 
     # c. layout and save
     fig.tight_layout()

@@ -9,20 +9,27 @@ from consav import jit
 import root_finding
 import simulate
 
-def bequest_loop(model,bequest_guess,step_size=0.5):
-    """ simulate the model to match initial wealth with bequests"""
+def bequest_loop(model,draws,bequest_guess=1,step_size=0.5):
+    """ simulate the model to match initial wealth with bequests
+    
+    args:
+        model: a HAH model object
+        draws: a draw from the initial wealth distribution (fixed in all simulations)
+        bequest_guess (optional): guess for scaling of the initial wealth distribution
+        step_size (optional): step size for updating the guess
+    """
+
+
     
     # a. unpack
     sol = model.sol
     sim = model.sim
     par = model.par
-    ss = model.ss
 
     par.do_print = False
 
     # b. simulate the model for initial guess and fixed draws
-    draws = np.random.lognormal(mean=0,sigma=par.sigma_a0,size=par.simN)
-
+    #draws = np.random.lognormal(mean=par.mu_a0,sigma=par.sigma_a0,size=par.simN)
     sim.a0[:] = bequest_guess*draws
         
         # b. call
@@ -58,8 +65,6 @@ def bequest_loop(model,bequest_guess,step_size=0.5):
         print(f'stable bequest not found in {iteration} simulations')
     else:
         print(f'convergence achieved in {iteration} simulations, mean bequest = {bequest_guess:.6f}')
-    
-    #ss.bequest_guess = bequest_guess
     
     par = model.par
     par.do_print = True
