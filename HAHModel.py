@@ -294,7 +294,7 @@ class HAHModelClass(EconModelClass):
 
         # a. shapes
         own_shape = (par.T,par.Nh,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
-        buy_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
+        #buy_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Nm)
         rent_shape = (par.T,par.Nhtilde,par.Nw,par.Nm)
         post_shape = (par.T,par.Nh+1,par.Nd,par.Td_shape,par.Tda_bar,par.Nw,par.Na)
 

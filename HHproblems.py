@@ -400,33 +400,26 @@ def solve_ref_fast(t,sol,par):
                 # ooo. loop over mortage plan choices 
                 for i_dp in range(par.Nd): 
                     d_prime_now = grid_d_prime[i_dp]
-                    for Tda in range(max(grid_Tda)):
 
-                        ## refinancer's net cash on hand equation
-                        loan = int(d_prime_now > 0)
-                        m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now  
+                    ## refinancer's net cash on hand equation
+                    loan = int(d_prime_now > 0)
+                    m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now 
 
-                        ## enforce non-negativity constraint
-                        if m_net <= 0:
-                            #count += 1
-                            #d_prime_ref[i_h,i_w,i_x] = 0
-                            #Tda_prime_ref[i_h,i_w,i_x] = 0
-                            #c_ref[i_h,i_w,i_x] = 0
-                            #inv_v_ref[i_h,i_w,i_x] = 0
-                            #inv_marg_u_ref[i_h,i_w,i_x] = 0        
-                            continue
+                    ## enforce non-negativity constraint
+                    if m_net_now > 0:
+                        for Tda in range(max(grid_Tda)+1):
 
-                        ## evaluate choice
-                        inv_v_ref_new = obj_ref(d_prime_now,m_net,
-                                                inv_v_stay[i_h,:,i_Td_new,Tda,i_w,:],
-                                                par.grid_m,grid_d_prime,par)
+                            ## evaluate choice
+                            inv_v_ref_now = obj_ref(d_prime_now,m_net_now,
+                                                    inv_v_stay[i_h,:,i_Td_new,Tda,i_w,:],
+                                                    par.grid_m,grid_d_prime,par)
 
-                        ## update optimal value and choices?
-                        if inv_v_ref_new > inv_v_ref_best:
-                            inv_v_ref_best = inv_v_ref_new
-                            d_prime_best = d_prime_now
-                            Tda_best = Tda
-                            i_dp_best = i_dp
+                            ## update optimal value and choices?
+                            if inv_v_ref_now > inv_v_ref_best:
+                                inv_v_ref_best = inv_v_ref_now
+                                d_prime_best = d_prime_now
+                                Tda_best = Tda
+                                i_dp_best = i_dp
                 
                 # ooo. save optimal value and choices
                 d_prime_ref[i_h,i_w,i_x] = d_prime_best
@@ -437,7 +430,7 @@ def solve_ref_fast(t,sol,par):
                 m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best  
                
                 ## enforce non-negativity constraint
-                if m_net <= 0:
+                if m_net <= 0 or inv_v_ref_best == 0:
                     count += 1
                     d_prime_ref[i_h,i_w,i_x] = 0
                     Tda_prime_ref[i_h,i_w,i_x] = 0
@@ -480,8 +473,8 @@ def solve_buy_fast(t,sol,par):
     # b. unpack input
     inv_v_stay = sol.inv_v_stay[t]
     c_stay = sol.c_stay[t]
-    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t+1),1)
     
+    grid_Tda = np.arange(0,np.fmin(par.Tda_bar,par.T-t+1),1)
     nu = par.nu
     rho = par.rho
     omega_dti = par.omega_dti[t]
@@ -514,36 +507,30 @@ def solve_buy_fast(t,sol,par):
                 # oo. loop over mortage plan choices 
                 for i_dp in range(len(grid_d_prime)): 
                     d_prime_now = grid_d_prime[i_dp]
-                    for Tda in range(max(grid_Tda)):
-                        
-                        ## buyer's net cash on hand equation
-                        loan = int(d_prime_now > 0)
-                        m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.C_buy)*par.q*h_buy_now
 
-                        ## enforce non-negativity constraint
-                        if m_net <= 0:
-                            #count += 1
-                            #d_prime_buy[i_w,i_x]= 0
-                            #Tda_prime_buy[i_w,i_x] = 0
-                            #h_buy[i_w,i_x] = 0
-                            #c_buy[i_w,i_x] = 0
-                            #inv_v_buy[i_w,i_x] = 0
-                            #inv_marg_u_buy[i_w,i_x] = 0        
-                            continue
-                        
-                        ## evaluate choice
-                        inv_v_buy_new = obj_buy_fast(d_prime_now,m_net,
-                                                inv_v_stay[i_hb,:,i_Td_new,Tda,i_w,:],
-                                                par.grid_m,grid_d_prime,par)
+                    ## buyer's net cash on hand equation
+                    loan = int(d_prime_now > 0)
+                    m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.C_buy)*par.q*h_buy_now
+                    
+                    ## enforce non-negativity constraint
+                    if m_net_now > 0:
+                        for Tda in range(max(grid_Tda)+1):
+                            ## evaluate choice
+                            inv_v_buy_now = obj_buy_fast(d_prime_now,
+                                                    m_net_now,
+                                                    inv_v_stay[i_hb,:,i_Td_new,Tda,i_w,:],
+                                                    par.grid_m,
+                                                    grid_d_prime,
+                                                    par)
 
-                        ## update optimal value and choices?
-                        if inv_v_buy_new > inv_v_buy_best:
-                            inv_v_buy_best = inv_v_buy_new
-                            d_prime_best = d_prime_now
-                            Tda_best = Tda
-                            h_buy_best = h_buy_now
-                            i_hb_best = i_hb
-                            i_dp_best = i_dp
+                            ## update optimal value and choices?
+                            if inv_v_buy_now > inv_v_buy_best:
+                                inv_v_buy_best = inv_v_buy_now
+                                d_prime_best = d_prime_now
+                                Tda_best = Tda
+                                h_buy_best = h_buy_now
+                                i_hb_best = i_hb
+                                i_dp_best = i_dp
 
             # ooo. save optimal value and choices
             d_prime_buy[i_w,i_x] = d_prime_best
@@ -555,7 +542,7 @@ def solve_buy_fast(t,sol,par):
             m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.C_buy)*par.q*h_buy_best
             
             ## enforce non-negativity constraint
-            if m_net <= 0:
+            if m_net <= 0 or inv_v_buy_best == 0:
                 count += 1
                 d_prime_buy[i_w,i_x]= 0
                 Tda_prime_buy[i_w,i_x] = 0
@@ -563,7 +550,6 @@ def solve_buy_fast(t,sol,par):
                 c_buy[i_w,i_x] = 0
                 inv_v_buy[i_w,i_x] = 0
                 inv_marg_u_buy[i_w,i_x] = 0        
-                continue
             else: 
                 # oooo. interpolate on stayer consumption and value function
                 c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
