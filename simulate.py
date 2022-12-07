@@ -447,17 +447,17 @@ def calc_utility(sim,par):
     for t in range(par.T):
         for i in prange(par.simN):
             # stayers and refinancers
-            if sim.h[t,i] > 0 and sim.h[t,i] == sim.h[t-1,i]: 
+            if sim.h_prime[t,i] > 0 and sim.h_prime[t,i] == sim.h[t,i]: 
                 move = 0
                 rent = 0
                 u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h[t,i],move,rent,t,par)
             #  buyers
-            elif sim.h[t,i] > 0 and sim.h[t,i] != sim.h[t-1,i]:
+            elif sim.h_prime[t,i] > 0 and sim.h_prime[t,i] != sim.h[t,i]:
                 move = 1
                 rent = 0
                 u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h[t,i],move,rent,t,par)
             # renters
-            elif sim.h[t,i] == 0:
+            elif sim.h_prime[t,i] == 0:
                 move = 0
                 rent = 1
                 u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h_tilde[t,i],move,rent,t,par)

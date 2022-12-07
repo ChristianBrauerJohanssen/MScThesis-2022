@@ -138,13 +138,13 @@ class HAHModelClass(EconModelClass):
         par.Nx = 45                                     # points in gross resources grid
         par.Na = 30                                     # points in assets grid
         par.m_max = 15.0                                # maximum cash-on-hand
-        par.x_max = 15.0                                # maximum gross resources
+        #par.x_max = 15.0                                # maximum gross resources
         par.x_min = -7.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max                           # maximum assets
 
         # i. simulation
-        par.mu_a0 = 0.8                                 # mean initial assets
-        par.sigma_a0 = 0.5                              # standard dev. of initial assets
+        par.mu_a0 = -1.99                               # mean initial assets
+        par.sigma_a0 = 1.25                             # standard dev. of initial assets
         
         par.simN = 100_000                              # number of simulated agents
         par.sim_seed = 1995                             # seed for random number generator
@@ -174,10 +174,10 @@ class HAHModelClass(EconModelClass):
         par = self.par
 
         # a. beginning of period states (income is approxed by Np-state Markov Proces, mortgage is dynamic)
-        par.grid_h = 1.2*np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
+        par.grid_h = np.array([par.h_min, 1.89, 2.51, 3.34, 4.44, par.h_max],dtype='double')
         par.grid_m = equilogspace(0,par.m_max,par.Nm)
-        par.grid_x = np.linspace(par.x_min,par.x_max,par.Nx)
-        par.grid_htilde = 1.2*np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double')
+        par.grid_x = np.append(np.linspace(par.x_min,-.5,par.Nx-par.Nm),par.grid_m)
+        par.grid_htilde = np.array([par.htilde_min, 1.42, par.htilde_max],dtype='double')
         
         # b. post-decision assets
         par.grid_a = equilogspace(0,par.a_max,par.Na)
@@ -523,7 +523,7 @@ class HAHModelClass(EconModelClass):
         sim_shape = (par.T,par.simN)
         sim.p_y_ini[:] = np.random.uniform(size=par.simN)
         sim.p_y[:,:] = np.random.uniform(size=(sim_shape))
-        sim.a0[:] = par.mu_a0*np.random.lognormal(mean=0,sigma=par.sigma_a0,size=par.simN)
+        sim.a0[:] = np.random.lognormal(mean=par.mu_a0,sigma=par.sigma_a0,size=par.simN)
         #sim.a0[:] = np.maximum(np.random.normal(loc=par.mu_a0,scale=par.sigma_a0,size=par.simN),np.zeros(par.simN))
         
         # b. call

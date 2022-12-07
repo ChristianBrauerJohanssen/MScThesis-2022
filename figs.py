@@ -284,6 +284,7 @@ def lifecycle_consav(model):
     ax_c.set_xlabel('age')
     ax_c.set_ylabel('$c_t$')
     ax_c.xaxis.set_ticks(age[::5])
+    ax_c.set_ylim(0,0.7)
 
     ax_nw = fig.add_subplot(1,2,2)
     ax_nw.plot(age,np.mean(nw_model,axis=1),lw=2,label='model')
