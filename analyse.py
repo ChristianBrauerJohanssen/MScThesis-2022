@@ -10,6 +10,7 @@ from EconModel import jit
 
 # c. local modules
 import utility
+import root_finding
 
 ####################
 #   analyse model  #
@@ -73,55 +74,78 @@ def calc_utility_cev_adjusted(sim,par,guess,n):
             rent = 1
             u += par.beta**t*utility.func(guess*sim.c[t,n],sim.h_tilde[t,n],move,rent,t,par)
     return u
+    
+def find_cev_direct(model1,model2,n,do_print=False,guess_min=0.5,guess_max=2.0,NK=10):
+    """ 
+    find CEV using direct method and bisection 
+    
+    args:
+        model1: baseline HAH model object
+        model2: alternative HAH model object
+        n (int): individual to compute CEV for
+        do_print (bool): whether to print output
+        guess_min (float): lower bound of search bracket
+        guess_max (float): upper bound of search bracket
+        NK (int): number of trial values in the search bracket
+    """
+
+    # a. unpack
+    with jit(model1) as model:
+        sim1 = model.sim
+    with jit(model2) as model:
+        sim2 = model.sim
+        par2 = model.par
+
+    # b. broad search
+    if do_print: print(f'### step 1: broad search ###\n')
+
+    trial_vec = np.linspace(guess_min,guess_max,NK) # trial values
+    clearing_cev = np.zeros(trial_vec.size) # asset market errors
+
+    for i,cev_guess in enumerate(trial_vec):
+        
+        try:
+            clearing_cev[i] = cev(cev_guess,sim1,sim2,par2,n,)
+        except Exception as e:
+            clearing_cev[i] = np.nan
+            print(f'{e}')
+            
+        if do_print: print(f'clearing_cev = {clearing_cev[i]:12.8f}\n')
+            
+    # c. determine search bracket
+    if do_print: print(f'### step 2: determine search bracket ###\n')
+
+    guess_max = np.min(trial_vec[clearing_cev < 0])
+    guess_min = np.max(trial_vec[clearing_cev > 0])
+
+    if do_print: print(f'H in [{guess_min:12.8f},{guess_max:12.8f}]\n')
+
+    # d. search
+    if do_print: print(f'### step 3: search ###\n')
+
+    root,_ = root_finding.brentq(
+        cev,guess_min,guess_max,args=(sim1,sim2,par2,n),do_print=do_print
+    )
+    return root 
 
 #@njit(parallel=True)
-def cev(sim1,sim2,par1,par2,guess=1,N=100):
+def cev(cev_guess,sim1,sim2,par2,n):
     """ compute ex ante consumption equivalent variation as in Sommer and Sullivan (2018). Note that
     the computation holds all variables and choices constant except for consumption. 
     
     args:
         model1: a HAH model object
         model2: a HAH model object
-        guess: a guess for the relative consumption change
+        guess (float): a guess for the relative consumption change
+        n (int): individual to compute CEV for
+        do_print (bool): whether to print output
+
+    returns:
+        diff (float): the utility difference between baseline and alternative model
     """
-
-    # a. unpack and prep
-    utility1 = sim1.utility[0:N] # baseline sum of discounted utility of size (1,simN)
-    #guess_vec = np.ones(par1.simN)*guess # a vector of size (1,simN) with the guess
-    guess_vec = np.ones(N)*guess # a vector of size (1,simN) with the guess
-
-    # b. compute the utility of the counterfactual model for each individual    
-    #for n in prange(par1.simN):
-    for n in range(N):
-        utility_now = 0 
-        iter = 0
-        while np.abs(utility1[n]-utility_now) > par1.tol*10**8 and iter <= par1.max_iter_simulate*10:
-
-            # compute CEV-adjusted utility for the alternative model
-            utility_now = calc_utility_cev_adjusted(sim2,par2,guess_vec[n],n)
-
-            # check if baseline and counterfactual utility are unequal
-            if np.abs(utility1[n]-utility_now) > par1.tol*10**8:
-                # update guess
-                guess_vec[n] = (utility_now/utility1[n])
-            
-            if iter%5000 == 0:
-                print('CEV computation did not converge for individual ',n,' after ',iter,' iterations')
-                print('utility1[n] = ',utility1[n])
-                print('utility_now = ',utility_now)
-                print('guess_vec[n] = ',guess_vec[n])
-            
-            # update counter and reset utility_now
-            iter += 1
-            utility_now = 0
-
-            
     
-    ## check if convergence was achieved for all individuals
-    #if np.any(np.abs(utility1-utility_new) > par1.tol*10**8):
-    #    raise ValueError('CEV computation did not converge for all individuals')
+    return calc_utility_cev_adjusted(sim2,par2,cev_guess,n) - sim1.utility[n] 
 
-    return guess_vec
 
 def model_moments_targ(model):
     """

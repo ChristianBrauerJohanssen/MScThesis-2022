@@ -97,7 +97,8 @@ def bequest_loop(model,draws,bequest_guess=1,step_size=0.5):
     
     par = model.par
     par.do_print = True
-    
+
+####################################################################################################
 
 def obj_ss(H_ss_guess,model,do_print=False):
     """ objective when solving for steady state housing """

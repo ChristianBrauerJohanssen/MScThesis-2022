@@ -509,7 +509,7 @@ class HAHModelClass(EconModelClass):
         sim.p_y = np.zeros(sim_shape)
         sim.i_y = np.zeros(sim_shape,dtype=np.int_)
 
-    def simulate(self,do_utility=False,do_euler_error=False):
+    def simulate(self,do_utility=False,do_euler_error=False,ini_wealth_scale=1.0):
         """ simulate the model """
         par = self.par
         sol = self.sol
@@ -522,7 +522,7 @@ class HAHModelClass(EconModelClass):
         sim_shape = (par.T,par.simN)
         sim.p_y_ini[:] = np.random.uniform(size=par.simN)
         sim.p_y[:,:] = np.random.uniform(size=(sim_shape))
-        sim.a0[:] = np.random.lognormal(mean=par.mu_a0,sigma=par.sigma_a0,size=par.simN)
+        sim.a0[:] = ini_wealth_scale*np.random.lognormal(mean=par.mu_a0,sigma=par.sigma_a0,size=par.simN)
         
         # b. call
         with jit(self) as model:
