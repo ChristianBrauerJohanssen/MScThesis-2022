@@ -166,7 +166,7 @@ def nw_and_tc(model):
 
     # e. compute user cost of housing
     rent_cost = bool_rent*par.q_r*sim.h_tilde
-    own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest
+    own_cost = par.delta*par.q*sim.h_prime + sim.prop_tax + sim.interest
 
     user_cost = rent_cost + own_cost 
 
@@ -243,7 +243,7 @@ def example_household(model,hh_no):
     #ax4 = fig.add_subplot(2,2,4)
     #ax4.plot(x_ax,c,label='consumption')
     fig.tight_layout()
-    plt.savefig('output/example_household.png')
+    plt.savefig(f'output/example_household.png')
     plt.show();
 
 
@@ -321,7 +321,7 @@ def lifecycle_housing(model):
     ho_model = np.ones((par.T,par.simN)) - bool_rent 
 
     rent_cost = bool_rent*par.q_r*sim.h_tilde
-    own_cost = par.delta*par.q*sim.h + sim.prop_tax + sim.interest
+    own_cost = par.delta*par.q*sim.h_prime + sim.prop_tax + sim.interest
     hexp_model  = rent_cost + own_cost  
 
     # c. prep data input

@@ -49,6 +49,7 @@ def lifecycle(sim,sol,par):
         inc_tax = sim.inc_tax
         prop_tax = sim.prop_tax
         interest = sim.interest
+        ird = sim.ird
 
     # simulate forward
         for i in prange(par.simN):
@@ -76,7 +77,7 @@ def lifecycle(sim,sol,par):
                                         p_lag=0,
                                         t=t,
                                         par=par)
-                m[t,i] = sim.a0[i] + mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par)
+                m[t,i] = np.fmin(sim.a0[i] + mt.income_aftertax(y[t,i],d[t,i],Tda[t,i],par),par.m_max) # stay inside grid
                 
                 inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],0,0,par)
                 prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)
@@ -99,18 +100,21 @@ def lifecycle(sim,sol,par):
                                         p_lag=p[t-1,i],
                                         t=t,
                                         par=par)
-                m[t,i] = trans.m_plus_func(
-                                        a[t-1,i],
-                                        y[t,i],
-                                        d_prime[t-1,i],
-                                        Td_prime[t-1,i],
-                                        Tda_prime[t-1,i],
-                                        par,
-                                        t)
+                m[t,i] = np.fmin(
+                            trans.m_plus_func(
+                                    a[t-1,i],
+                                    y[t,i],
+                                    d_prime[t-1,i],
+                                    Td_prime[t-1,i],
+                                    Tda_prime[t-1,i],
+                                    par,
+                                    t),
+                            par.m_max) # stay inside grid
 
                 inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d_prime[t-1,i],Tda_prime[t-1,i],par)
                 prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)                                        
                 interest[t,i] = (1-(Tda[t-1,i]>0))*par.r_m*d_prime[t-1,i] + (Tda[t-1,i]>0)*par.r_da*d_prime[t-1,i]
+                ird[t,i] = par.tau_r0*np.fmin(interest[t,i],par.rd_bar) + par.tau_r1*np.fmax(0,interest[t,i]-par.rd_bar)
 
             # c. scale mortgage grid
             d_prime_high = par.q*h[t,i]
@@ -128,9 +132,9 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
                    c,a,discrete,sol,par):
  
     # a. compute gross cash-on-hand
-    m_net_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par)
-    m_gross_rent = m_gross_buy = m-d+(1-par.delta-par.C_sell)*par.q*h-mt.property_tax(par.q,h,par)
-    m_gross_ref = m_net_stay-d
+    m_net_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par) # always smaller than m
+    m_gross_rent = m_gross_buy = np.fmin(m-d+(1-par.delta-par.C_sell)*par.q*h-mt.property_tax(par.q,h,par),par.m_max) # stay inside grid
+    m_gross_ref = m_net_stay-d  # always smaller than m 
         
     # b. find indices of discrete vars
     i_Td = int(Td - par.Td_bar)
@@ -463,8 +467,8 @@ def calc_utility(sim,par):
                 u[i] += par.beta**t*utility.func(sim.c[t,i],sim.h_tilde[t,i],move,rent,t,par)
 
             if u[i] == -np.inf:
-                print(t,i)
-                break
+                print('utility is -inf for individual ',i,' at time ',t)
+                
 
 ###############################
 # 4. Utilities                #

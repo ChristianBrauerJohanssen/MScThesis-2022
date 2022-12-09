@@ -19,52 +19,81 @@ def bequest_loop(model,draws,bequest_guess=1,step_size=0.5):
         step_size (optional): step size for updating the guess
     """
 
-
-    
     # a. unpack
-    sol = model.sol
-    sim = model.sim
     par = model.par
-
     par.do_print = False
 
     # b. simulate the model for initial guess and fixed draws
-    #draws = np.random.lognormal(mean=par.mu_a0,sigma=par.sigma_a0,size=par.simN)
-    sim.a0[:] = bequest_guess*draws
-        
         # b. call
     with jit(model) as model_jit:
         par = model_jit.par
         sol = model_jit.sol
         sim = model_jit.sim
+        sim.a0[:] = bequest_guess*draws
         simulate.lifecycle(sim,sol,par)
     
-    discrepancy = np.mean(sim.a0) - np.mean(sim.a[par.T-1,:])
+    liquid_assets = sim.a[par.T-1,:]
+    liquid_assets_tot = np.sum(liquid_assets)
+    liquid_assets_mean = np.mean(liquid_assets)
+
+    housing = (1-par.delta)*par.q*sim.h_prime[par.T-1,:]
+    housing_tot = np.sum(housing)
+    housing_mean = np.mean(housing)
+
+    debt = sim.Tda_prime[par.T-2,:]*(1+par.r_da)*sim.d_prime[par.T-1,:]+(np.ones(par.simN)-sim.Tda_prime[par.T-2,:])*(1+par.r_m)*sim.d_prime[par.T-1,:]
+    debt_tot = np.sum(debt)
+    debt_mean = np.mean(debt)
+
+    bequest = (1+par.r)*liquid_assets_tot + housing_tot - debt_tot
+    bequest_mean = (1+par.r)*liquid_assets_mean + housing_mean - debt_mean
+    
+    discrepancy = np.sum(sim.a0) - bequest
+    discrepancy_mean = np.mean(sim.a0) - bequest_mean
 
     # c. iterate until initial wealth match bequest
     iteration = 0
-    while np.abs(discrepancy) > par.tol*10**6 and iteration < par.max_iter_simulate:
+    while np.abs(discrepancy_mean) > par.tol*10**6 and iteration < par.max_iter_simulate:
     
         # update mean initial wealth
-        bequest_guess -= step_size*discrepancy
+        bequest_guess -= step_size*discrepancy_mean
 
         # simulate model
         with jit(model) as model:
             sim.a0[:] = bequest_guess*draws
             simulate.lifecycle(sim,sol,par)
         
-        discrepancy = np.mean(sim.a0) - np.mean(sim.a[par.T-1,:])
+        liquid_assets = sim.a[par.T-1,:]
+        liquid_assets_tot = np.sum(liquid_assets)
+        liquid_assets_mean = np.mean(liquid_assets)
+
+        housing = (1-par.delta)*par.q*sim.h_prime[par.T-1,:]
+        housing_tot = np.sum(housing)
+        housing_mean = np.mean(housing)
+
+        debt = sim.Tda_prime[par.T-2,:]*(1+par.r_da)*sim.d_prime[par.T-1,:]+(np.ones(par.simN)-sim.Tda_prime[par.T-2,:])*(1+par.r_m)*sim.d_prime[par.T-1,:]
+        debt_tot = np.sum(debt)
+        debt_mean = np.mean(debt)
+
+        bequest = (1+par.r)*liquid_assets_tot + housing_tot - debt_tot
+        bequest_mean = (1+par.r)*liquid_assets_mean + housing_mean - debt_mean
+
+        discrepancy = np.sum(sim.a0) - bequest
+        discrepancy_mean = np.mean(sim.a0) - bequest_mean
 
         # update counter and print statement
         iteration += 1
         if iteration%1 == 0:
-            print(f'iteration = {iteration}, discrepancy = {discrepancy:.6f}')
+            print(f'iteration = {iteration}, discrepancy in means = {discrepancy_mean:.6f}')
 
     # terminal statement
-    if np.abs(discrepancy) > par.tol*10**6:
+    if np.abs(discrepancy_mean) > par.tol*10**6:
         print(f'stable bequest not found in {iteration} simulations')
     else:
-        print(f'convergence achieved in {iteration} simulations, mean bequest = {bequest_guess:.6f}')
+        print(f'convergence achieved in {iteration} simulations')
+        print(f'    scaling of initial wealth = {bequest_guess:.6f}')
+        print(f'    bequest = {bequest:.4f},')
+        print(f'    initial wealth = {np.sum(sim.a0):.4f},')
+        print(f'    discrepancy = {discrepancy:.6f}')
     
     par = model.par
     par.do_print = True

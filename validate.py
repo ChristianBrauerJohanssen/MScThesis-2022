@@ -82,7 +82,7 @@ def val_finreg(model):
     dti_denom = sim.y[D_org]
     ltvs = ltv_num/ltv_denom
     dtis = ltv_num/dti_denom
-
+    print(f'mean interest deduction is {np.mean(sim.ird[D]):.6f}') # sim.d > 0 --> sim.d_prime[t-1] > 0
     # c. print
     print(f'average mortgage size at origination is {np.mean(sim.d_prime[D_org]):.4f}')
     #print(f'sum of outstanding mortgage balances are {np.sum(sim.d):.4f}')    

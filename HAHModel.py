@@ -137,7 +137,7 @@ class HAHModelClass(EconModelClass):
         par.Nm = 30                                     # points in cash on hand grid
         par.Nx = 45                                     # points in gross resources grid
         par.Na = 30                                     # points in assets grid
-        par.m_max = 15.0                                # maximum cash-on-hand
+        par.m_max = 35.0                                # maximum cash-on-hand
         #par.x_max = 15.0                                # maximum gross resources
         par.x_min = -7.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max                           # maximum assets
@@ -153,11 +153,10 @@ class HAHModelClass(EconModelClass):
         # i. misc
         par.t = 0                                       # initial time
         par.tol = 1e-12                                 # solution precision tolerance
-        par.do_print = False                            # whether to print solution progress
+        par.do_print = True                            # whether to print solution progress
         par.do_print_period = False                     # whether to print solution progress every period
-        #par.max_iter_solve = 50_000                     # max iterations when solving household problem
-        par.max_iter_simulate = 5_000                   # max iterations when simulating household problem
-        par.include_unemp = True                        # unemployment extension?
+        par.max_iter_simulate = 500                     # max iterations when finding stable bequest
+        par.include_unemp = False                       # unemployment extension?
 
     def allocate(self):
         """ allocate model """
@@ -218,10 +217,7 @@ class HAHModelClass(EconModelClass):
         par.w_ergodic_cumsum = np.cumsum(par.w_ergodic)
         #par.w_trans_T = par.w_trans.T
 
-        # d. set seed
-        np.random.seed(par.sim_seed)
-
-        # e. timing
+        # d. timing
         par.time_vbarq = np.zeros(par.T)
         par.time_stay = np.zeros(par.T)
         par.time_ref = np.zeros(par.T)
@@ -499,6 +495,7 @@ class HAHModelClass(EconModelClass):
         sim.inc_tax = np.zeros(sim_shape)
         sim.prop_tax = np.zeros(sim_shape)
         sim.interest = np.zeros(sim_shape)
+        sim.ird = np.zeros(sim_shape)
 
         # d. euler
         euler_shape = (par.T-1,par.simN)
@@ -520,11 +517,12 @@ class HAHModelClass(EconModelClass):
         tic = time.time()
 
         # a. random shock to income and initial wealth draw
+        np.random.seed(par.sim_seed) # reset seed in every simulation for reproducibility/comparability
+
         sim_shape = (par.T,par.simN)
         sim.p_y_ini[:] = np.random.uniform(size=par.simN)
         sim.p_y[:,:] = np.random.uniform(size=(sim_shape))
         sim.a0[:] = np.random.lognormal(mean=par.mu_a0,sigma=par.sigma_a0,size=par.simN)
-        #sim.a0[:] = np.maximum(np.random.normal(loc=par.mu_a0,scale=par.sigma_a0,size=par.simN),np.zeros(par.simN))
         
         # b. call
         with jit(self) as model:
