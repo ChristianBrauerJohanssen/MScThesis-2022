@@ -287,7 +287,7 @@ def lifecycle_consav(model):
     ax_c.set_xlabel('age',fontsize=fs)
     ax_c.set_ylabel('$c_t$',fontsize=fs)
     ax_c.xaxis.set_ticks(age[::5])
-    ax_c.set_ylim(0,0.7)
+    ax_c.set_ylim(0,0.8)
     ax_c.tick_params(axis='both', labelsize=fs_ticks)
 
     ax_nw = fig.add_subplot(1,2,2)
@@ -712,7 +712,59 @@ def n_chi_iniwealth(model,data):
     fig.savefig('output/calib_figs.png')
 
 
-#########################################################################################################
+###########################
+# deduction heterogeneity #
+###########################
+def deduction_by_income(model):
+    """ plot the share of simulated interest deduction by income quintiles """
+
+    fs = 14
+    fs_ticks = 12
+
+    # a. unpack
+    par = model.par
+    sim = model.sim
+
+    # b. compute share of interest deduction by income quintiles
+    y_life = np.sum(sim.y,axis=0) # total income over life
+    ird_life = np.sum(sim.ird,axis=0) # total interest deduction over life
+    y_quintiles = np.percentile(y_life,[0,20,40,60,80,100]) # income quintiles
+
+    ## boolean array of whether income is in a given quintile
+    y_quintile_bool = np.zeros(shape=(par.simN,5))
+    for i in range(5):
+        for n in range(par.simN):
+            y_quintile_bool[n,i] = (y_life[n] >= y_quintiles[i]) and (y_life[n] <= y_quintiles[i+1])
+    
+    ## share of interest deduction by income quintiles
+    ird_quintiles = np.zeros(shape=(5))
+    for i in range(5):
+        b = y_quintile_bool[:,i] > 0
+        ird_quintiles[i] = np.sum(ird_life[b])/np.sum(ird_life)
+
+    ## share of interest deduction by income quintiles
+    ird_quintiles = np.zeros(shape=(5))
+    for i in range(5):
+        b = y_quintile_bool[:,i] > 0
+        ird_quintiles[i] = np.sum(ird_life[b])/np.sum(ird_life)
+
+    # c. plot share of interest deduction by income quintiles
+    fig = plt.figure(figsize=(8,4))
+    ax = fig.add_subplot(1,1,1)
+    ax.bar(np.arange(5),ird_quintiles)
+    ax.set_xticks(np.arange(5))
+    ax.set_xticklabels(['1','2','3','4','5'])
+    ax.set_yticks([0,0.1,0.2,0.3,0.4])
+    ax.set_xlabel('income quintiles',fontsize=fs)
+    ax.set_ylabel('share of interest deduction',fontsize=fs)
+    ax.tick_params(axis='both', labelsize=fs_ticks)
+
+    # d. save and show   
+    plt.tight_layout()
+    plt.savefig('output/deduction_by_income.png')
+    plt.show()
+
+#######################################################################################################
 
 
 ###################

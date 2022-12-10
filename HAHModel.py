@@ -113,7 +113,7 @@ class HAHModelClass(EconModelClass):
         #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
-        par.tau_y0 = 0.33                               # income tax function parameter 1    
+        par.tau_y0 = 0.325                              # income tax function parameter 1    
         par.tau_y1 = 0.19                               # income tax function parameter 2
         par.tau_h0 = 0.0092                             # bottom-bracket property tax rate
         par.tau_h1 = 0.03                               # top-bracket property tax rate

@@ -165,7 +165,7 @@ def model_moments_targ(model):
     names = ['Aggregate net worth / (annual) labour income',
              'Annual fraction of houses sold',
              'Home ownership rate of <35 y.o.',
-             'Mean NW at age 75 / mean NW at age 50',
+             'Mean NW at age 75 / mean NW at age 55',
              'Share of households leaving no bequest',
              'Taxes to labour income'
              ]
@@ -182,7 +182,7 @@ def model_moments_targ(model):
     nw_to_y = mean_nw/np.mean(sim.y)
     h_share_sold = np.mean(sim.h_prime != sim.h) # adjust for sim.h > 0 ?
     ho_u35 = np.mean(sim.h_prime[0:10,:] > 0)
-    nw_75_55 = mean_nw_age[75-par.Tmin]/mean_nw_age[50-par.Tmin]
+    nw_75_55 = mean_nw_age[75-par.Tmin]/mean_nw_age[55-par.Tmin]
     no_beq_share = np.mean(bequest_mat == 0)
 
     model_moments = np.array([nw_to_y,
