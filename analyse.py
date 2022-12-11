@@ -75,13 +75,13 @@ def calc_utility_cev_adjusted(sim,par,guess,n):
             u += par.beta**t*utility.func(guess*sim.c[t,n],sim.h_tilde[t,n],move,rent,t,par)
     return u
     
-def find_cev_direct(model1,model2,n,do_print=False,guess_min=0.5,guess_max=2.0,NK=10):
+def find_cev_direct(u_baseline,model_alt,n,do_print=False,guess_min=0.5,guess_max=2.0,NK=10):
     """ 
     find CEV using direct method and bisection 
     
     args:
-        model1: baseline HAH model object
-        model2: alternative HAH model object
+        u_baseline (np.array): utility from the baseline model of size (simN,)
+        model_alt: alternative HAH model object
         n (int): individual to compute CEV for
         do_print (bool): whether to print output
         guess_min (float): lower bound of search bracket
@@ -90,11 +90,9 @@ def find_cev_direct(model1,model2,n,do_print=False,guess_min=0.5,guess_max=2.0,N
     """
 
     # a. unpack
-    with jit(model1) as model:
-        sim1 = model.sim
-    with jit(model2) as model:
-        sim2 = model.sim
-        par2 = model.par
+    with jit(model_alt) as model:
+        sim_alt = model.sim
+        par = model.par
 
     # b. broad search
     if do_print: print(f'### step 1: broad search ###\n')
@@ -105,7 +103,7 @@ def find_cev_direct(model1,model2,n,do_print=False,guess_min=0.5,guess_max=2.0,N
     for i,cev_guess in enumerate(trial_vec):
         
         try:
-            clearing_cev[i] = cev(cev_guess,sim1,sim2,par2,n,)
+            clearing_cev[i] = cev(cev_guess,u_baseline,sim_alt,par,n,)
         except Exception as e:
             clearing_cev[i] = np.nan
             print(f'{e}')
@@ -124,18 +122,18 @@ def find_cev_direct(model1,model2,n,do_print=False,guess_min=0.5,guess_max=2.0,N
     if do_print: print(f'### step 3: search ###\n')
 
     root,_ = root_finding.brentq(
-        cev,guess_min,guess_max,args=(sim1,sim2,par2,n),do_print=do_print
+        cev,guess_min,guess_max,args=(u_baseline,sim_alt,par,n),do_print=do_print
     )
     return root 
 
 #@njit(parallel=True)
-def cev(cev_guess,sim1,sim2,par2,n):
+def cev(cev_guess,u_baseline,sim,par,n):
     """ compute ex ante consumption equivalent variation as in Sommer and Sullivan (2018). Note that
     the computation holds all variables and choices constant except for consumption. 
     
     args:
-        model1: a HAH model object
-        model2: a HAH model object
+        u_baseline: utility from the baseline model of size (simN,)
+        sim: simulation from the alternative model
         guess (float): a guess for the relative consumption change
         n (int): individual to compute CEV for
         do_print (bool): whether to print output
@@ -144,7 +142,7 @@ def cev(cev_guess,sim1,sim2,par2,n):
         diff (float): the utility difference between baseline and alternative model
     """
     
-    return calc_utility_cev_adjusted(sim2,par2,cev_guess,n) - sim1.utility[n] 
+    return calc_utility_cev_adjusted(sim,par,cev_guess,n) - u_baseline[n]
 
 
 def model_moments_targ(model):

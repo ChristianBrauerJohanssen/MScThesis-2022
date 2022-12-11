@@ -98,6 +98,8 @@ def bequest_loop(model,draws,bequest_guess=1,step_size=0.5):
     par = model.par
     par.do_print = True
 
+    return bequest_guess
+
 ####################################################################################################
 
 def obj_ss(H_ss_guess,model,do_print=False):

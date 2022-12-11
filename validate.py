@@ -62,7 +62,6 @@ def val_sim(model):
     if full_check == 0:
         print('there are no errors in the housing stock')
     
-
 # validate financial regulation impact
 def val_finreg(model):
     """ validate the impact of financial regulation in the simulation """
@@ -86,12 +85,11 @@ def val_finreg(model):
     # c. print
     print(f'average mortgage size at origination is {np.mean(sim.d_prime[D_org]):.4f}')
     #print(f'sum of outstanding mortgage balances are {np.sum(sim.d):.4f}')    
-    #print('the distribution of DA periods is:')
-    #print(np.unique(sim.Tda_prime,return_counts=True)[0])
-    #print(np.unique(sim.Tda_prime,return_counts=True)[1])
+    print('the distribution of DA periods is:')
+    print(np.unique(sim.Tda_prime,return_counts=True)[0])
+    print(np.unique(sim.Tda_prime,return_counts=True)[1])
     print(f'the share of DA mortgages at origination is {np.sum(DA[D_org])/np.sum(Dp[D_org]):.4f}')
     print(f'mean LTV is {np.mean(ltvs):.4f} and mean DTI is {np.mean(dtis):.4f} at mortgage origination')
-
 
 # validate calibration targets
 def val_inc_calib_targets(model):
@@ -115,5 +113,5 @@ def val_inc_calib_targets(model):
     #ax1.set_title('distribution of pre-tax income')
     #
     #ax2 = fig.add_subplot(1,2,2)
-    #ax2.scatter(np.unique(sim.p.flatten()),np.unique(sim.__annotations__p.flatten(),return_counts=True)[1])
+    #ax2.scatter(np.unique(sim.p.flatten()),np.unique(sim.p.flatten(),return_counts=True)[1])
     #ax2.set_title('distribution of income states');

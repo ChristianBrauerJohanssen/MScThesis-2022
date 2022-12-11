@@ -608,8 +608,7 @@ class HAHModelClass(EconModelClass):
 
     def fig_n_chi_iniwealth(self):
         figs.n_chi_iniwealth(self)
-    ################
-    #    tables    #
-    ################
+
+
 
 
