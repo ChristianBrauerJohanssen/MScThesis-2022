@@ -727,37 +727,51 @@ def deduction_by_income(model):
 
     # b. compute share of interest deduction by income quintiles
     y_life = np.sum(sim.y,axis=0) # total income over life
+    nw_life = np.sum(sim.a + sim.h_prime - sim.d_prime,axis=0) # total net wealth over life
     ird_life = np.sum(sim.ird,axis=0) # total interest deduction over life
+
     y_quintiles = np.percentile(y_life,[0,20,40,60,80,100]) # income quintiles
+    nw_quintiles = np.percentile(nw_life,[0,20,40,60,80,100]) # net wealth quintiles
 
     ## boolean array of whether income is in a given quintile
     y_quintile_bool = np.zeros(shape=(par.simN,5))
+    nw_quintile_bool = np.zeros(shape=(par.simN,5))
     for i in range(5):
         for n in range(par.simN):
             y_quintile_bool[n,i] = (y_life[n] >= y_quintiles[i]) and (y_life[n] <= y_quintiles[i+1])
+            nw_quintile_bool[n,i] = (nw_life[n] >= nw_quintiles[i]) and (nw_life[n] <= nw_quintiles[i+1])
     
     ## share of interest deduction by income quintiles
-    ird_quintiles = np.zeros(shape=(5))
-    for i in range(5):
-        b = y_quintile_bool[:,i] > 0
-        ird_quintiles[i] = np.sum(ird_life[b])/np.sum(ird_life)
+    ird_quintiles_y = np.zeros(shape=(5))
+    ird_quintiles_nw = np.zeros(shape=(5))
 
-    ## share of interest deduction by income quintiles
-    ird_quintiles = np.zeros(shape=(5))
     for i in range(5):
-        b = y_quintile_bool[:,i] > 0
-        ird_quintiles[i] = np.sum(ird_life[b])/np.sum(ird_life)
+        b_y = y_quintile_bool[:,i] > 0
+        b_nw = nw_quintile_bool[:,i] > 0
 
-    # c. plot share of interest deduction by income quintiles
-    fig = plt.figure(figsize=(8,4))
-    ax = fig.add_subplot(1,1,1)
-    ax.bar(np.arange(5),ird_quintiles)
-    ax.set_xticks(np.arange(5))
-    ax.set_xticklabels(['1','2','3','4','5'])
-    ax.set_yticks([0,0.1,0.2,0.3,0.4])
-    ax.set_xlabel('income quintiles',fontsize=fs)
-    ax.set_ylabel('share of interest deduction',fontsize=fs)
-    ax.tick_params(axis='both', labelsize=fs_ticks)
+        ird_quintiles_y[i] = np.sum(ird_life[b_y])/np.sum(ird_life)
+        ird_quintiles_nw[i] = np.sum(ird_life[b_nw])/np.sum(ird_life)
+
+
+    # c. plot share of interest deduction by income and net wealth quintiles
+    fig = plt.figure(figsize=(12,4))
+    
+    ax1 = fig.add_subplot(1,2,1)
+    ax1.bar(np.arange(5),ird_quintiles_y)
+    ax1.set_xticks(np.arange(5))
+    ax1.set_xticklabels(['1','2','3','4','5'])
+    ax1.set_yticks([0,0.1,0.2,0.3,0.4])
+    ax1.set_xlabel('income quintiles',fontsize=fs)
+    ax1.set_ylabel('share of deductions',fontsize=fs)
+    ax1.tick_params(axis='both', labelsize=fs_ticks)
+
+    ax2 = fig.add_subplot(1,2,2)
+    ax2.bar(np.arange(5),ird_quintiles_nw)
+    ax2.set_xticks(np.arange(5))
+    ax2.set_xticklabels(['1','2','3','4','5'])
+    ax2.set_yticks([0,0.1,0.2,0.3,0.4])
+    ax2.set_xlabel('net wealth quintiles',fontsize=fs)
+    ax2.tick_params(axis='both', labelsize=fs_ticks)
 
     # d. save and show   
     plt.tight_layout()
