@@ -144,7 +144,6 @@ def cev(cev_guess,u_baseline,sim,par,n):
     
     return calc_utility_cev_adjusted(sim,par,cev_guess,n) - u_baseline[n]
 
-
 def model_moments_targ(model):
     """
     Calculate various moments targeted in the model calibration

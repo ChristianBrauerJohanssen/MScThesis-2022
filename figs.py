@@ -200,7 +200,9 @@ def example_household(model,hh_no):
         model: model object
         hh_no: household number
     """
-    
+    fs = 14
+    fs_ticks = 12
+
     # a. unpack
     sim = model.sim
     par = model.par
@@ -219,26 +221,29 @@ def example_household(model,hh_no):
     c = sim.c[:,hh_no]
     
     # plots
-    fig = plt.figure(figsize=(12,8))
+    fig = plt.figure(figsize=(12,4))
     
-    ax1 = fig.add_subplot(2,2,1)
+    ax1 = fig.add_subplot(1,3,1)
     ax1.plot(x_ax,c,label='$c_t$')
-    ax1.plot(x_ax,dp,label='$d^{\prime}_t$')
+    ax1.plot(x_ax,dp,label='$d^{\prime}_t$',)
     ax1.plot(x_ax,hp,label='$h_t$')
-    ax1.legend()
+    ax1.legend(fontsize=fs)
+    ax1.tick_params(axis='both', labelsize=fs_ticks)
     #ax1.set_title(f'simulated continuous choices for household number {hh_no}')
     
-    ax2 = fig.add_subplot(2,2,2)
+    ax2 = fig.add_subplot(1,3,2)
     ax2.plot(x_ax,y,label='$y_t$')
     ax2.plot(x_ax,a,label='$a_t$')
-    ax2.legend()
+    ax2.legend(fontsize=fs)
+    ax2.tick_params(axis='both', labelsize=fs_ticks)
     #ax2.set_title(f'simulated income and assets for household number {hh_no}')
     
-    ax3 = fig.add_subplot(2,2,3)
+    ax3 = fig.add_subplot(1,3,3)
     ax3.plot(x_ax,DA,label='$T^{DA}_t$')
     ax3.plot(x_ax,discrete,label='discrete choice')
     #ax3.set_title(f'simulated discrete choices for household number {hh_no}')
-    ax3.legend()
+    ax3.legend(fontsize=fs)
+    ax3.tick_params(axis='both', labelsize=fs_ticks)
     
     #ax4 = fig.add_subplot(2,2,4)
     #ax4.plot(x_ax,c,label='consumption')

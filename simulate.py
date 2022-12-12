@@ -214,7 +214,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             else: 
                 a[0] = m_net_rent - c[0]
 
-    #elif d == 0 : # cannot refinance if you have no debt  
+    #elif d == 0 : # cannot refinance if you have no debt, yes you can take new mortgage   
     #    discrete_choice = np.amax(np.array([inv_v_stay,inv_v_buy,inv_v_rent]))
 #
     #    # o. stay and pay
