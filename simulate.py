@@ -166,7 +166,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
  
     # a. compute gross cash-on-hand
     m_net_stay = m-par.delta*par.q*h-mt.property_tax(par.q,h,par) # always smaller than m
-    m_gross_rent = m_gross_buy = np.fmin(m-d+(1-par.delta-par.C_sell)*par.q*h-mt.property_tax(par.q,h,par),par.m_max) # stay inside grid
+    m_gross_rent = m_gross_buy = np.fmin(m-d+(1-par.C_sell)*par.q*h,par.m_max) # stay inside grid
     m_gross_ref = m_net_stay-d  # always smaller than m 
         
     # b. find indices of discrete vars
@@ -219,7 +219,8 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
 
             ## ensure feasibility 
             loan = 1  #int(d_prime[0]>0)
-            m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            #m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            m_net_buy = m_gross_buy-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]-(1+par.delta+par.C_buy)*par.q*h_prime[0]-mt.property_tax(par.q,h_prime[0],par)
             if c[0] > m_net_buy: 
                 c[0] = m_net_buy
                 a[0] = 0.0
@@ -246,78 +247,6 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
                 a[0] = 0.0
             else: 
                 a[0] = m_net_rent - c[0]
-
-    #elif d == 0 : # cannot refinance if you have no debt, yes you can take new mortgage   
-    #    discrete_choice = np.amax(np.array([inv_v_stay,inv_v_buy,inv_v_rent]))
-#
-    #    # o. stay and pay
-    #    if discrete_choice == inv_v_stay:
-    #        ## discrete choices (all fixed)
-    #        discrete[0] = 0
-    #        h_prime[0] = h
-    #        d_prime[0] = d
-    #        Td_prime[0] = Td
-    #        Tda_prime[0] = Tda
-#
-    #        ## consumption choice
-    #        c[0] = linear_interp.interp_2d(grid_d_prime,par.grid_m,sol.c_stay[t,i_h,:,i_Td,i_Tda,i_y_,:],
-    #                                       d,m_net_stay)
-#
-    #        ## credit constrained? 
-    #        if c[0] > m_net_stay:
-    #            c[0] = m_net_stay
-    #            #if c[0] <= 0:
-    #                # do default
-    #            a[0] = 0.0
-    #        else:
-    #            a[0] = m_net_stay - c[0]
-#
-#
-    #    # oo. buy new house
-    #    elif discrete_choice == inv_v_buy: 
-#
-    #        discrete[0] = 2
-#
-    #        ## house purchase
-    #        h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
-#
-    #        ## mortgage plan choice
-    #        d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
-    #        Td_prime[0] = mt.Td_func(t,par)
-    #        Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
-#
-    #        ## consumption choice
-    #        c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
-#
-    #        ## ensure feasibility
-    #        loan = int(d_prime[0]>0)
-    #        m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
-    #        if c[0] > m_net_buy : 
-    #            c[0] = m_net_buy
-    #            a[0] = 0.0
-    #        else:
-    #            a[0] = m_net_buy - c[0]
-    #    
-    #    # ooo. rent
-    #    elif discrete_choice == inv_v_rent:
-    #        ## discrete choices (all fixed)
-    #        discrete[0] = 3
-    #        h_tilde[0] = h_tilde_best
-    #        h_prime[0] = 0
-    #        d_prime[0] = 0
-    #        Td_prime[0] = 0
-    #        Tda_prime[0] = 0
-#
-    #        ## consumption choice
-    #        m_net_rent = m_gross_rent - par.q_r*h_tilde_best
-    #        c[0] = linear_interp.interp_1d(par.grid_m,sol.c_rent[t,i_ht_best,i_y_],m_net_rent)
-#
-    #        ## ensure feasibility
-    #        if c[0] > m_net_rent:
-    #            c[0] = m_net_rent
-    #            a[0] = 0.0
-    #        else: 
-    #            a[0] = m_net_rent - c[0]
 
     else:  
         discrete_choice = np.amax(np.array([inv_v_stay,inv_v_ref,inv_v_buy,inv_v_rent]))
@@ -385,7 +314,8 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
 
             ## ensure feasibility
             loan = 1 #int(d_prime[0]>0)
-            m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            #m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
+            m_net_buy = m_gross_buy-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]-(1+par.delta+par.C_buy)*par.q*h_prime[0]-mt.property_tax(par.q,h_prime[0],par)
             if c[0] > m_net_buy: 
                 c[0] = m_net_buy
                 a[0] = 0.0
@@ -504,7 +434,7 @@ def calc_utility(sim,par):
                 
 
 ###############################
-# 4. Utilities                #
+# 4. Tools                    #
 ###############################
 @njit
 def find_nearest(array,value):

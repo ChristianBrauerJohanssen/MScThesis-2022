@@ -723,8 +723,8 @@ def n_chi_iniwealth(model,data):
 ###########################
 # household heterogeneity #
 ###########################
-def deduction_by_income(model):
-    """ plot the share of simulated interest deduction by income quintiles """
+def deduction_by_income(model,savename):
+    """ plot the share of simulated interest deduction by income and net wealth quintiles """
 
     fs = 14
     fs_ticks = 12
@@ -772,6 +772,7 @@ def deduction_by_income(model):
     ax1.set_xlabel('income quintiles',fontsize=fs)
     ax1.set_ylabel('share of deductions',fontsize=fs)
     ax1.tick_params(axis='both', labelsize=fs_ticks)
+    
 
     ax2 = fig.add_subplot(1,2,2)
     ax2.bar(np.arange(5),ird_quintiles_nw)
@@ -783,10 +784,13 @@ def deduction_by_income(model):
 
     # d. save and show   
     plt.tight_layout()
+    np.save('output/ird_quintiles_y_'+savename+'.npy',ird_quintiles_y)
+    np.save('output/ird_quintiles_nw_'+savename+'.npy',ird_quintiles_nw)
     plt.savefig('output/deduction_by_income.png')
     plt.show()
 
-def homeowner_by_income(model):
+def homeowner_by_income(model,savename):
+    """ plot the homeowner share by income and net wealth quintiles """
     fs = 14
     fs_ticks = 12
 
@@ -849,6 +853,8 @@ def homeowner_by_income(model):
 
     # d. save and show   
     plt.tight_layout()
+    np.save('output/ho_quintiles_y_'+savename+'.npy',ho_quintiles_y)
+    np.save('output/ho_quintiles_nw_'+savename+'.npy',ho_quintiles_nw)
     plt.savefig('output/homeowner_by_income.png')
     plt.show()
 

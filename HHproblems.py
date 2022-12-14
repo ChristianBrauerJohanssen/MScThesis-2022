@@ -117,7 +117,7 @@ def postdecision_compute_v_bar_q_rent(t,sol,par):
             for i_ht in range(par.Nhtilde):  
                 for i_a in range(par.Na):
                     # find gross cash-on-hand
-                    m_plus_rent[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,0,0,0,par,t+1) - par.q_r*par.grid_htilde[i_ht],par.a_max) # t+1?
+                    m_plus_rent[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,0,0,0,par,t+1) - par.q_r*par.grid_htilde[i_ht],par.a_max)
                 
                 # interpolate on inverse funcs given rental choice
                 linear_interp.interp_1d_vec(par.grid_m,sol.inv_v_rent[t+1,i_ht,i_shock],
@@ -128,7 +128,7 @@ def postdecision_compute_v_bar_q_rent(t,sol,par):
             ## buy next period
             for i_a in range(par.Na):
                 # gross cash-on-hand
-                m_plus_gross_buy[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,0,0,0,par,t+1),par.a_max) # t+1?
+                m_plus_gross_buy[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,0,0,0,par,t+1),par.a_max)
 
             ## interpolate on inverse funcs for buyers
             linear_interp.interp_1d_vec(par.grid_x,sol.inv_v_buy_fast[t+1,i_shock],m_plus_gross_buy,inv_v_buy_plus)
@@ -238,8 +238,9 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                                 for i_a in range(par.Na):                     
                                     m_plus_stay[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,grid_d_prime[i_dp],Td,Tda,par,t+1) - par.delta*par.q*h - mt.property_tax(par.q,h,par),par.a_max) 
                                     m_plus_gross_ref[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp],par.a_max))
-                                    m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp] + (1-par.C_sell)*par.q*h,par.a_max))
-
+                                    m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,grid_d_prime[i_dp],Td,Tda,par,t+1) - grid_d_prime[i_dp] + (1-par.C_sell)*par.q*h,par.a_max))
+                                    #m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp] + (1-par.C_sell)*par.q*h,par.a_max))
+                                
                                 ## interpolate to get inverse funcs for stayers
                                 linear_interp.interp_2d_only_last_vec_mon(prep_stay,grid_d_prime,par.grid_m,
                                                                           sol.inv_v_stay[t+1,i_h,:,i_Td,i_Tda,i_shock],
@@ -518,7 +519,8 @@ def solve_buy_fast(t,sol,par):
 
                     ## buyer's net cash on hand equation
                     loan = 1 #int(d_prime_now > 0)
-                    m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.C_buy)*par.q*h_buy_now
+                    m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.delta+par.C_buy)*par.q*h_buy_now-mt.property_tax(par.q,h_buy_now,par)
+                    #m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.C_buy)*par.q*h_buy_now
                     
                     ## enforce non-negativity constraint
                     if m_net_now > 0:
@@ -547,7 +549,8 @@ def solve_buy_fast(t,sol,par):
 
             ## buyer's net cash on hand equation
             loan = 1 #int(d_prime_best > 0)
-            m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.C_buy)*par.q*h_buy_best
+            m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.delta+par.C_buy)*par.q*h_buy_best-mt.property_tax(par.q,h_buy_best,par)
+            #m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.C_buy)*par.q*h_buy_best
             
             ## enforce non-negativity constraint
             if m_net <= 0 or inv_v_buy_best == 0:
