@@ -101,7 +101,11 @@ def postdecision_compute_v_bar_q_rent(t,sol,par):
         for i_shock in range(par.Nw):                
             # i. next-period income
             p = par.grid_w[i_w] 
-            p_plus = par.grid_w[i_shock]
+            if t < par.Tr: 
+                p_plus = par.grid_w[i_shock]
+            else: 
+                p_plus = par.grid_w[i_w]
+            #p_plus = par.grid_w[i_shock]
             y_plus = trans.p_to_y_func(i_y=i_w,p=p_plus,p_lag=p,t=t+1,par=par)
 
              # ii. compute weight 
@@ -214,8 +218,12 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                             # iii. loop over shocks and then end-of-period assets
                             for i_shock in range(par.Nw):                
                                 # o. next-period income
-                                p = par.grid_w[i_w] 
-                                p_plus = par.grid_w[i_shock]
+                                p = par.grid_w[i_w]
+                                if t < par.Tr: 
+                                    p_plus = par.grid_w[i_shock]
+                                else: 
+                                    p_plus = par.grid_w[i_w] 
+                                #p_plus = par.grid_w[i_shock]
                                 y_plus = trans.p_to_y_func(i_y=i_w,p=p_plus,p_lag=p,t=t+1,par=par)
                                 
                                 # oo. compute weight 
@@ -402,7 +410,7 @@ def solve_ref_fast(t,sol,par):
                     d_prime_now = grid_d_prime[i_dp]
 
                     ## refinancer's net cash on hand equation
-                    loan = int(d_prime_now > 0)
+                    loan = 1 #int(d_prime_now > 0)
                     m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now 
 
                     ## enforce non-negativity constraint
@@ -426,7 +434,7 @@ def solve_ref_fast(t,sol,par):
                 Tda_prime_ref[i_h,i_w,i_x] = Tda_best
                 
                 ## refinancer's net cash on hand equation
-                loan = int(d_prime_best > 0)
+                loan = 1 #int(d_prime_best > 0)
                 m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best  
                
                 ## enforce non-negativity constraint
@@ -509,7 +517,7 @@ def solve_buy_fast(t,sol,par):
                     d_prime_now = grid_d_prime[i_dp]
 
                     ## buyer's net cash on hand equation
-                    loan = int(d_prime_now > 0)
+                    loan = 1 #int(d_prime_now > 0)
                     m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.C_buy)*par.q*h_buy_now
                     
                     ## enforce non-negativity constraint
@@ -538,7 +546,7 @@ def solve_buy_fast(t,sol,par):
             h_buy[i_w,i_x] = h_buy_best
 
             ## buyer's net cash on hand equation
-            loan = int(d_prime_best > 0)
+            loan = 1 #int(d_prime_best > 0)
             m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.C_buy)*par.q*h_buy_best
             
             ## enforce non-negativity constraint

@@ -67,7 +67,7 @@ class HAHModelClass(EconModelClass):
         par.kappa = 0.34                                # disutility of moving
         par.thetab = 100                                # strength of bequest motive 
         par.K = 7.7                                     # extent of bequest as luxury
-        par.zeta = 0.8                                  # disutility of default
+        par.zeta = 10.0                                  # disutility of default
         
         # b. demographics and life cycle profile
         par.median_income = 670_000                     # for normalisation
@@ -113,7 +113,7 @@ class HAHModelClass(EconModelClass):
         #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
-        par.tau_y0 = 0.325                              # income tax function parameter 1    
+        par.tau_y0 = 0.32                               # income tax function parameter 1    
         par.tau_y1 = 0.19                               # income tax function parameter 2
         par.tau_h0 = 0.0092                             # bottom-bracket property tax rate
         par.tau_h1 = 0.03                               # top-bracket property tax rate
@@ -137,8 +137,7 @@ class HAHModelClass(EconModelClass):
         par.Nm = 30                                     # points in cash on hand grid
         par.Nx = 45                                     # points in gross resources grid
         par.Na = 30                                     # points in assets grid
-        par.m_max = 35.0                                # maximum cash-on-hand
-        #par.x_max = 15.0                                # maximum gross resources
+        par.m_max = 35.0                                # maximum cash-on-hand and gross resources
         par.x_min = -7.0                                # minimum gross resources (before refinancing)
         par.a_max = par.m_max                           # maximum assets
 

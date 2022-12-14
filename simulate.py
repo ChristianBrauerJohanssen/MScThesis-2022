@@ -83,7 +83,7 @@ def lifecycle(sim,sol,par):
                 prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)
                 
                 
-            else:
+            elif t < par.Tr:
                 h[t,i] = h_prime[t-1,i]
                 d[t,i] = trans.d_plus_func(
                                         d_prime[t-1,i],
@@ -94,6 +94,39 @@ def lifecycle(sim,sol,par):
                 Td[t,i] = Td_prime[t-1,i]
                 Tda[t,i] = trans.Tda_plus_func(Tda_prime[t-1,i]) 
                 p[t,i] = par.grid_w[i_y_]
+                y[t,i] = trans.p_to_y_func(
+                                        i_y=i_y_,
+                                        p=p[t,i],
+                                        p_lag=p[t-1,i],
+                                        t=t,
+                                        par=par)
+                m[t,i] = np.fmin(
+                            trans.m_plus_func(
+                                    a[t-1,i],
+                                    y[t,i],
+                                    d_prime[t-1,i],
+                                    Td_prime[t-1,i],
+                                    Tda_prime[t-1,i],
+                                    par,
+                                    t),
+                            par.m_max) # stay inside grid
+
+                inc_tax[t,i] = y[t,i] - mt.income_aftertax(y[t,i],d_prime[t-1,i],Tda_prime[t-1,i],par)
+                prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)                                        
+                interest[t,i] = (1-(Tda[t-1,i]>0))*par.r_m*d_prime[t-1,i] + (Tda[t-1,i]>0)*par.r_da*d_prime[t-1,i]
+                ird[t,i] = par.tau_r0*np.fmin(interest[t,i],par.rd_bar) + par.tau_r1*np.fmax(0,interest[t,i]-par.rd_bar)
+
+            else:
+                h[t,i] = h_prime[t-1,i]
+                d[t,i] = trans.d_plus_func(
+                                        d_prime[t-1,i],
+                                        t,
+                                        Td_prime[t-1,i],
+                                        Tda_prime[t-1,i],
+                                        par) 
+                Td[t,i] = Td_prime[t-1,i]
+                Tda[t,i] = trans.Tda_plus_func(Tda_prime[t-1,i]) 
+                p[t,i] = p[t-1,i]
                 y[t,i] = trans.p_to_y_func(
                                         i_y=i_y_,
                                         p=p[t,i],
@@ -185,7 +218,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
 
             ## ensure feasibility 
-            loan = int(d_prime[0]>0)
+            loan = 1  #int(d_prime[0]>0)
             m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
             if c[0] > m_net_buy: 
                 c[0] = m_net_buy
@@ -326,7 +359,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             c[0] = linear_interp.interp_1d(par.grid_x,sol.c_ref_fast[t,i_h,i_y_,:],m_gross_ref)
 
             ## ensure feasibility
-            loan = int(d_prime[0]>0)
+            loan = 1 #int(d_prime[0]>0)
             m_net_ref = m_gross_ref-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
             if c[0] > m_net_ref:
                 c[0] = m_net_ref
@@ -350,10 +383,10 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             ## consumption choice
             c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
 
-            ## ensure feasibility (come back to this later)
-            loan = int(d_prime[0]>0)
+            ## ensure feasibility
+            loan = 1 #int(d_prime[0]>0)
             m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
-            if c[0] > m_net_buy : 
+            if c[0] > m_net_buy: 
                 c[0] = m_net_buy
                 a[0] = 0.0
             else:

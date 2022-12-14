@@ -226,7 +226,7 @@ def model_moments(model):
 
     # d. calculate the model moments
     ho_share = 1 - np.sum(sim.discrete == 3)/(par.T*par.simN)
-    mean_hsize = np.mean(sim.h[sim.h > 0])                                          # conditional on owning a house
+    mean_hsize = np.mean(sim.h_prime[sim.h_prime > 0])                              # conditional on owning a house
     mean_hexp = np.mean(hexp)                                     
     mean_mortgage = np.mean(sim.d_prime[sim.d_prime > 0])                           # conditional on having a mortgage
     ho_mort_share = np.mean(sim.d_prime[sim.h_prime > 0] > 0)                       # share of homwowners with mortgage

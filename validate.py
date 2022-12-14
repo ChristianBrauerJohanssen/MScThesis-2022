@@ -39,6 +39,13 @@ def val_sim(model):
     assert np.sum(hp0*ht0) == 0, f'there are {np.sum(hp0*ht0)} '+'instances of h_t=0 and h^{tilde}_t=0$'
     print('there are no instances of neither buying nor renting')
 
+    d0 = model.sim.d == 0
+    dp0 = model.sim.d_prime == 0
+    ref = model.sim.discrete == 1
+    #assert np.sum(d0*dp0*ref) == 0, f'there are {np.sum(d0*dp0*ref)} '+'instances of d=0 and d^{prime}=0 for refinancers'
+    #print('there are no instances of "zero-refinancing" ')
+    print(f'there are {np.sum(d0*dp0*ref)} '+'instances of d=0 and d^{prime}=0 for refinancers')
+
     # check for errors in housing stock
     bool_buy = sim.discrete == 2
     bool_stay = sim.discrete == 0

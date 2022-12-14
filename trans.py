@@ -10,21 +10,12 @@ import mt
 # 2. income process
 @njit(fastmath=True)
 def p_to_y_func(i_y,p,p_lag,t,par):
+    y = p*par.chi[t] 
+    #if t < par.Tr:
+    #    y = p*par.chi[t] 
+    #else: 
+    #    y = par.chi[t]
     
-    if t < par.Tr:
-        y = p*par.chi[t] 
-    else: 
-        y = par.chi[t]
-    #    y = p*par.chi[t]
-    #    #if i_y == 0: 
-    #    #    y = par.b
-    #    #else:
-    #    #    y = p*par.chi[t]
-    #elif t >= par.Tr: 
-    #    #y = par.pension*p_lag*par.chi[t]
-    #    
-    ##else: 
-    ##    y = p_lag*par.chi[t]
     return y
 
 # 3. cash on hand

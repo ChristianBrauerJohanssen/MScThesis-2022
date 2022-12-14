@@ -41,12 +41,13 @@ def lifecycle_full(model,quantiles:bool=False):
     sim = model.sim
 
     # b. figure
-    fig = plt.figure(figsize=(12,8))
+    fig = plt.figure(figsize=(12,12))
 
-    simvarlist = [('h_prime','$h_t$ - mean house size'),
+    simvarlist = [('y','mean pre-tax income'),
+                  ('h_prime','$h_t$ - mean house size'),
                   ('d_prime','$d^{\prime}_t$ - mean debt post'),
                   ('c','$c_t$ - mean consumption '),
-                  #('m','$m_t$ - mean cash on hand beg.'),
+                  ('m','$m_t$ - mean cash on hand beg.'),
                   ('a','$a_t$ - mean liquids assets post'),                  
                   ]
 
@@ -229,24 +230,20 @@ def example_household(model,hh_no):
     ax1.plot(x_ax,hp,label='$h_t$')
     ax1.legend(fontsize=fs)
     ax1.tick_params(axis='both', labelsize=fs_ticks)
-    #ax1.set_title(f'simulated continuous choices for household number {hh_no}')
     
     ax2 = fig.add_subplot(1,3,2)
     ax2.plot(x_ax,y,label='$y_t$')
     ax2.plot(x_ax,a,label='$a_t$')
     ax2.legend(fontsize=fs)
     ax2.tick_params(axis='both', labelsize=fs_ticks)
-    #ax2.set_title(f'simulated income and assets for household number {hh_no}')
     
     ax3 = fig.add_subplot(1,3,3)
     ax3.plot(x_ax,DA,label='$T^{DA}_t$')
-    ax3.plot(x_ax,discrete,label='discrete choice')
-    #ax3.set_title(f'simulated discrete choices for household number {hh_no}')
+    ax3.plot(x_ax,discrete,label='discrete')
+    ax3.set_title(f'simulated discrete choices for household number {hh_no}')
     ax3.legend(fontsize=fs)
     ax3.tick_params(axis='both', labelsize=fs_ticks)
     
-    #ax4 = fig.add_subplot(2,2,4)
-    #ax4.plot(x_ax,c,label='consumption')
     fig.tight_layout()
     plt.savefig(f'output/example_household.png')
     plt.show();
@@ -387,12 +384,16 @@ def lifecycle_mortgage(model):
     b_dp_da = bool_dp*bool_da
 
     DA_shares = np.sum(b_dp_da,axis=1)/np.sum(bool_dp,axis=1)
+    DA_share_vol = np.sum(sim.d_prime*bool_da,axis=1)/np.sum(sim.d_prime,axis=1)
 
     # c. prep data input
     d_data = pd.read_excel(
         io='LifeCycleData.xlsx',
         sheet_name='MortgageOutput').to_numpy()
-    
+
+    io_data = pd.read_table('Share_IO.txt')
+    io_share = io_data['share_IO'].to_numpy(dtype='float')
+
     # d. plot
     fig = plt.figure(figsize=(12,6))
 
@@ -406,7 +407,9 @@ def lifecycle_mortgage(model):
     ax_d.tick_params(axis='both', labelsize=fs_ticks)
 
     ax_da = fig.add_subplot(1,2,2)
-    ax_da.plot(age,DA_shares,lw=2,label='model')
+    #ax_da.plot(age,DA_shares,lw=2,label='model, share')
+    ax_da.plot(age,DA_share_vol,lw=2,label='model, vol')
+    ax_da.plot(age,io_share[5:60],label='data')
     ax_da.legend(fontsize=fs_ticks)
     ax_da.set_xlabel('age',fontsize=fs)
     ax_da.set_ylabel('DA mortgage share',fontsize=fs)
@@ -718,7 +721,7 @@ def n_chi_iniwealth(model,data):
 
 
 ###########################
-# deduction heterogeneity #
+# household heterogeneity #
 ###########################
 def deduction_by_income(model):
     """ plot the share of simulated interest deduction by income quintiles """
@@ -781,6 +784,72 @@ def deduction_by_income(model):
     # d. save and show   
     plt.tight_layout()
     plt.savefig('output/deduction_by_income.png')
+    plt.show()
+
+def homeowner_by_income(model):
+    fs = 14
+    fs_ticks = 12
+
+    # a. unpack
+    par = model.par
+    sim = model.sim
+
+    # b. compute share of interest deduction by income quintiles
+    y_flat = sim.y.flatten() 
+    nw = sim.a + sim.h_prime - sim.d_prime # net wealth
+    nw_flat = nw.flatten()
+    ho = sim.h_prime > 0
+    ho_flat = ho.flatten()
+
+    y_quintiles = np.percentile(y_flat,[0,20,40,60,80,100]) # income quintiles
+    nw_quintiles = np.percentile(nw_flat,[0,20,40,60,80,100]) # net wealth quintiles
+
+    ## boolean array of whether income is in a given quintile
+    y_quintile_bool = np.zeros(shape=(par.simN*par.T,5))
+    nw_quintile_bool = np.zeros(shape=(par.simN*par.T,5))
+    
+    for i in range(5):
+        for j in range(par.simN*par.T):
+            y_quintile_bool[j,i] = (y_flat[j] >= y_quintiles[i]) and (y_flat[j] <= y_quintiles[i+1])
+            nw_quintile_bool[j,i] = (nw_flat[j] >= nw_quintiles[i]) and (nw_flat[j] <= nw_quintiles[i+1])
+    
+    ## share of interest deduction by income quintiles
+    ho_quintiles_y = np.zeros(shape=(5))
+    ho_quintiles_nw = np.zeros(shape=(5))
+
+    for i in range(5):
+        b_y = y_quintile_bool[:,i] > 0
+        b_nw = nw_quintile_bool[:,i] > 0
+
+        ho_quintiles_y[i] = np.sum(ho_flat[b_y])/len(ho_flat[b_y])
+        ho_quintiles_nw[i] = np.sum(ho_flat[b_nw])/len(ho_flat[b_nw])
+
+
+    # c. plot share of interest deduction by income and net wealth quintiles
+    fig = plt.figure(figsize=(12,4))
+    
+    ax1 = fig.add_subplot(1,2,1)
+    ax1.bar(np.arange(5),ho_quintiles_y)
+    ax1.set_xticks(np.arange(5))
+    ax1.set_xticklabels(['1','2','3','4','5'])
+    ax1.set_ylim(0,1)
+    ax1.set_yticks(np.arange(stop=1.1,step=0.2))
+    ax1.set_xlabel('income quintiles',fontsize=fs)
+    ax1.set_ylabel('homeowner share',fontsize=fs)
+    ax1.tick_params(axis='both', labelsize=fs_ticks)
+
+    ax2 = fig.add_subplot(1,2,2)
+    ax2.bar(np.arange(5),ho_quintiles_nw)
+    ax2.set_xticks(np.arange(5))
+    ax2.set_xticklabels(['1','2','3','4','5'])
+    ax2.set_ylim(0,1)
+    ax2.set_yticks(np.arange(stop=1.1,step=0.2))
+    ax2.set_xlabel('net wealth quintiles',fontsize=fs)
+    ax2.tick_params(axis='both', labelsize=fs_ticks)
+
+    # d. save and show   
+    plt.tight_layout()
+    plt.savefig('output/homeowner_by_income.png')
     plt.show()
 
 #######################################################################################################
