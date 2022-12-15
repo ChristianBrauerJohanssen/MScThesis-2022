@@ -210,8 +210,7 @@ def optimal_choice(i,i_y_,y,t,h,d,Td,Tda,m,
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
             ## mortgage plan choice
-            d_max = np.fmin(par.omega_ltv*par.q*h_prime[0],par.omega_dti[t]*y)   
-            d_prime[0] = np.fmin(sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy],d_max)
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
             Td_prime[0] = mt.Td_func(t,par)
             Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
 
@@ -282,8 +281,7 @@ def optimal_choice(i,i_y_,y,t,h,d,Td,Tda,m,
             Td_prime[0] = mt.Td_func(t,par)
 
             ## mortgage plan choice
-            d_max = np.fmin(par.omega_ltv*par.q*h,par.omega_dti[t]*y)   
-            d_prime[0] = np.fmin(sol.d_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref],d_max)
+            d_prime[0] = sol.d_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref]
             Tda_prime[0] = sol.Tda_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref]
 
             ## consumption choice
@@ -307,8 +305,7 @@ def optimal_choice(i,i_y_,y,t,h,d,Td,Tda,m,
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
             ## mortgage plan choice
-            d_max = np.fmin(par.omega_ltv*par.q*h_prime[0],par.omega_dti[t]*y)   
-            d_prime[0] = np.fmin(sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy],d_max)
+            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
             Td_prime[0] = mt.Td_func(t,par)
             Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
 

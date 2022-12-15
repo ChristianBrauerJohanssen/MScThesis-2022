@@ -41,7 +41,7 @@ def lifecycle_full(model,quantiles:bool=False):
     sim = model.sim
 
     # b. figure
-    fig = plt.figure(figsize=(12,12),dpi=1200)
+    fig = plt.figure(figsize=(12,12))
 
     simvarlist = [('y','mean pre-tax income'),
                   ('h_prime','$h_t$ - mean house size'),
@@ -123,7 +123,7 @@ def homeownership(model):
                 }
 
     # b. figure
-    fig = plt.figure(figsize=(12,12),dpi=1200)
+    fig = plt.figure(figsize=(12,12))
 
     # determine number of rows in figure, given the number of columns
     cols = 2
@@ -201,8 +201,8 @@ def example_household(model,hh_no):
         model: model object
         hh_no: household number
     """
-    fs = 14
-    fs_ticks = 12
+    fs = 16
+    fs_ticks = 14
 
     # a. unpack
     sim = model.sim
@@ -257,8 +257,8 @@ def lifecycle_consav(model):
     """
     plot the life cycle profiles of consumption and net wealth and compare with data
     """
-    fs = 14
-    fs_ticks = 12
+    fs = 16
+    fs_ticks = 14
 
     # a. unpack
     par = model.par
@@ -310,8 +310,8 @@ def lifecycle_housing(model):
     """
     plot homeowner share and mean housing expenditure over the lifecycle and compare with data
     """
-    fs = 14
-    fs_ticks = 12
+    fs = 16
+    fs_ticks = 14
 
     # a. unpack
     par = model.par
@@ -367,8 +367,8 @@ def lifecycle_housing(model):
 def lifecycle_mortgage(model):
     """ plot mean mortgage balance and share of DA mortgages over the lifecycle and compare with data """
     
-    fs = 14
-    fs_ticks = 12
+    fs = 16
+    fs_ticks = 14
 
     # a. unpack
     par = model.par
@@ -726,8 +726,8 @@ def n_chi_iniwealth(model,data):
 def deduction_by_income(model,savename):
     """ plot the share of simulated interest deduction by income and net wealth quintiles """
 
-    fs = 14
-    fs_ticks = 12
+    fs = 16
+    fs_ticks = 14
 
     # a. unpack
     par = model.par
@@ -791,8 +791,8 @@ def deduction_by_income(model,savename):
 
 def homeowner_by_income(model,savename):
     """ plot the homeowner share by income and net wealth quintiles """
-    fs = 14
-    fs_ticks = 12
+    fs = 16
+    fs_ticks = 14
 
     # a. unpack
     par = model.par

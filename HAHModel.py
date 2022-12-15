@@ -59,12 +59,12 @@ class HAHModelClass(EconModelClass):
         par = self.par
         
         # a. preferences
-        par.beta = 0.965                                # subjective discount factor
+        par.beta = 0.95                                # subjective discount factor
         par.rho = 2.0                                   # CRRA coefficient
-        par.alpha = 1.1                                 # housing curvature
-        par.nu = 0.26                                   # weight on housing
-        par.phi = 0.85                                  # scaling of housing services from rent
-        par.kappa = 0.34                                # disutility of moving
+        par.alpha = 1.25                                 # housing curvature
+        par.nu = 0.3                                  # weight on housing
+        par.phi = 0.75                                  # scaling of housing services from rent
+        par.kappa = 0.09                                # disutility of moving
         par.thetab = 100                                # strength of bequest motive 
         par.K = 7.7                                     # extent of bequest as luxury
         par.zeta = 10.0                                  # disutility of default
@@ -113,7 +113,7 @@ class HAHModelClass(EconModelClass):
         #par.Nepsilon = 5                               # quadrature nodes for housing shock
 
         # f. taxation
-        par.tau_y0 = 0.32                               # income tax function parameter 1    
+        par.tau_y0 = 0.32                             # income tax function parameter 1    
         par.tau_y1 = 0.19                               # income tax function parameter 2
         par.tau_h0 = 0.0092                             # bottom-bracket property tax rate
         par.tau_h1 = 0.03                               # top-bracket property tax rate

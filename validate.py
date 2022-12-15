@@ -97,7 +97,8 @@ def val_finreg(model):
     print(np.unique(sim.Tda_prime,return_counts=True)[1])
     print(f'the share of DA mortgages at origination is {np.sum(DA[D_org])/np.sum(Dp[D_org]):.4f}')
     print(f'mean LTV is {np.mean(ltvs):.4f} and mean DTI is {np.mean(dtis):.4f} at mortgage origination')
-
+    print(f'max LTV at origination is {np.max(ltvs):.4f} and max DTI is {np.max(dtis):.4f} at mortgage origination')
+    
 # validate calibration targets
 def val_inc_calib_targets(model):
     """ validate income distribution and calibration targets """

@@ -450,13 +450,13 @@ def solve_ref_fast(t,sol,par):
                     inv_marg_u_ref[i_h,i_w,i_x] = 0        
                 else: 
                     # oooo. now interpolate on stayer consumption and value function
-                    c_ref[i_h,i_w,i_x] = linear_interp.interp_2d(grid_d_prime,par.grid_m,c_stay[i_h,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
-                    inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_2d(grid_d_prime,par.grid_m,inv_v_stay[i_h,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
-                    inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
-                    
-                    #c_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,c_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
-                    #inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                    #c_ref[i_h,i_w,i_x] = linear_interp.interp_2d(grid_d_prime,par.grid_m,c_stay[i_h,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
+                    #inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_2d(grid_d_prime,par.grid_m,inv_v_stay[i_h,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
                     #inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
+                    
+                    c_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,c_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                    inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                    inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
 
 
 ####################
@@ -568,14 +568,14 @@ def solve_buy_fast(t,sol,par):
                 inv_marg_u_buy[i_w,i_x] = 0        
             else: 
                 # oooo. interpolate on stayer consumption and value function
-                d_high_best = np.fmin(par.omega_ltv*par.q*h_buy_best,omega_dti*y)
-                grid_dp_best = np.linspace(0,d_high_best,par.Nd)
-                c_buy[i_w,i_x]= linear_interp.interp_2d(grid_dp_best,par.grid_m,c_stay[i_hb_best,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
-                inv_v_buy[i_w,i_x] = linear_interp.interp_2d(grid_dp_best,par.grid_m,inv_v_stay[i_hb_best,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
-                inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
-                #c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
-                #inv_v_buy[i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                #d_high_best = np.fmin(par.omega_ltv*par.q*h_buy_best,omega_dti*y)
+                #grid_dp_best = np.linspace(0,d_high_best,par.Nd)
+                #c_buy[i_w,i_x]= linear_interp.interp_2d(grid_dp_best,par.grid_m,c_stay[i_hb_best,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
+                #inv_v_buy[i_w,i_x] = linear_interp.interp_2d(grid_dp_best,par.grid_m,inv_v_stay[i_hb_best,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
                 #inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
+                c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                inv_v_buy[i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
 
 
 ####################
