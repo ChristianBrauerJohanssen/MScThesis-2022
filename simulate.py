@@ -83,7 +83,7 @@ def lifecycle(sim,sol,par):
                 prop_tax[t,i] = mt.property_tax(par.q,h[t,i],par)
                 
                 
-            elif t < par.Tr:
+            elif t <= par.Tr:
                 h[t,i] = h_prime[t-1,i]
                 d[t,i] = trans.d_plus_func(
                                         d_prime[t-1,i],
@@ -155,12 +155,12 @@ def lifecycle(sim,sol,par):
 
             
             # d. optimal choices and post decision states
-            optimal_choice(i,i_y_,t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],
+            optimal_choice(i,i_y_,y[t,i],t,h[t,i],d[t,i],Td[t,i],Tda[t,i],m[t,i],
                            h_tilde[t,i:],h_prime[t,i:],d_prime[t,i:],grid_d_prime,Td_prime[t,i:],Tda_prime[t,i:],
                            c[t,i:],a[t,i:],discrete[t,i:],sol,par)
             
 @njit            
-def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
+def optimal_choice(i,i_y_,y,t,h,d,Td,Tda,m,
                    h_tilde,h_prime,d_prime,grid_d_prime,Td_prime,Tda_prime,
                    c,a,discrete,sol,par):
  
@@ -210,7 +210,8 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
             ## mortgage plan choice
-            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
+            d_max = np.fmin(par.omega_ltv*par.q*h_prime[0],par.omega_dti[t]*y)   
+            d_prime[0] = np.fmin(sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy],d_max)
             Td_prime[0] = mt.Td_func(t,par)
             Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
 
@@ -218,7 +219,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
 
             ## ensure feasibility 
-            loan = 1  #int(d_prime[0]>0)
+            loan = int(d_prime[0]>0)
             #m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
             m_net_buy = m_gross_buy-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]-(1+par.delta+par.C_buy)*par.q*h_prime[0]-mt.property_tax(par.q,h_prime[0],par)
             if c[0] > m_net_buy: 
@@ -281,7 +282,8 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             Td_prime[0] = mt.Td_func(t,par)
 
             ## mortgage plan choice
-            d_prime[0] = sol.d_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref]                                 
+            d_max = np.fmin(par.omega_ltv*par.q*h,par.omega_dti[t]*y)   
+            d_prime[0] = np.fmin(sol.d_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref],d_max)
             Tda_prime[0] = sol.Tda_prime_ref_fast[t,i_h,i_y_,i_m_gross_ref]
 
             ## consumption choice
@@ -305,7 +307,8 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             h_prime[0] = sol.h_buy_fast[t,i_y_,i_m_gross_buy]
 
             ## mortgage plan choice
-            d_prime[0] = sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy]
+            d_max = np.fmin(par.omega_ltv*par.q*h_prime[0],par.omega_dti[t]*y)   
+            d_prime[0] = np.fmin(sol.d_prime_buy_fast[t,i_y_,i_m_gross_buy],d_max)
             Td_prime[0] = mt.Td_func(t,par)
             Tda_prime[0] = sol.Tda_prime_buy_fast[t,i_y_,i_m_gross_buy]
 
@@ -313,7 +316,7 @@ def optimal_choice(i,i_y_,t,h,d,Td,Tda,m,
             c[0] = linear_interp.interp_1d(par.grid_x,sol.c_buy_fast[t,i_y_,:],m_gross_buy)
 
             ## ensure feasibility
-            loan = 1 #int(d_prime[0]>0)
+            loan = int(d_prime[0]>0)
             #m_net_buy = m_gross_buy-(1+par.C_buy)*par.q*h_prime[0]-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]
             m_net_buy = m_gross_buy-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime[0]-(1+par.delta+par.C_buy)*par.q*h_prime[0]-mt.property_tax(par.q,h_prime[0],par)
             if c[0] > m_net_buy: 

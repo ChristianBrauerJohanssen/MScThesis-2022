@@ -10,12 +10,7 @@ import mt
 # 2. income process
 @njit(fastmath=True)
 def p_to_y_func(i_y,p,p_lag,t,par):
-    y = p*par.chi[t] 
-    #if t < par.Tr:
-    #    y = p*par.chi[t] 
-    #else: 
-    #    y = par.chi[t]
-    
+    y = p*par.chi[t]     
     return y
 
 # 3. cash on hand
@@ -50,14 +45,3 @@ def ab_plus_func(a,d,Tda,h,par):
     else: 
         r = par.r_m
     return (1+par.r)*a + (1-par.delta)*par.q*h - mt.property_tax(par.q,h,par) - (1+r)*d
-
-
-#@njit(fastmath=True)
-#def p_plus_func(p,psi,par,t):
-#    if t<=par.Tr:
-#        p_plus = p**(par.rho_p)*psi*par.chi[t]
-#        p_plus = np.fmax(par.p_min,np.fmin(p_plus,par.p_max)) # bounds
-#    else: 
-#        p_plus = p**(par.rho_p)*par.chi[t] # no shocks to permanent income after retirement
-#        p_plus = np.fmax(par.p_min,np.fmin(p_plus,par.p_max)) # bounds
-#    return p_plus

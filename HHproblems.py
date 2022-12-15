@@ -48,7 +48,8 @@ def last_period_v_bar_q(t,sol,par):
                     h = par.grid_h[i_h-1]
                 
                 # ii. scale mortgage grid
-                d_high = par.q*h #np.fmin(par.omega_ltv*par.q*h,par.omega_dti*y)
+                d_high = par.q*h
+                #np.fmin(par.omega_ltv*par.q*h,par.omega_dti*y)
                 grid_d = np.linspace(0,d_high,par.Nd)
                 
                 for i_d in range(par.Nd):    
@@ -101,11 +102,11 @@ def postdecision_compute_v_bar_q_rent(t,sol,par):
         for i_shock in range(par.Nw):                
             # i. next-period income
             p = par.grid_w[i_w] 
-            if t < par.Tr: 
+            if t+1 < par.Tr: # < or <= ?
                 p_plus = par.grid_w[i_shock]
             else: 
                 p_plus = par.grid_w[i_w]
-            #p_plus = par.grid_w[i_shock]
+            
             y_plus = trans.p_to_y_func(i_y=i_w,p=p_plus,p_lag=p,t=t+1,par=par)
 
              # ii. compute weight 
@@ -167,9 +168,10 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
     inv_v_bar = sol.inv_v_bar[t,1:] # 0 is renter solution
     q = sol.q[t,1:] # 0 is renter solution
 
-    inv_v_rent_plus = sol.inv_v_rent_plus[t] # from renter's post decision computation
-    inv_marg_u_rent_plus = sol.inv_marg_u_rent_plus[t] # from renter's post decision computation
-    rent_choice = sol.rent_choice[t] # from renter's post decision computation
+    # from renter's post decision computation
+    inv_v_rent_plus = sol.inv_v_rent_plus[t] 
+    inv_marg_u_rent_plus = sol.inv_marg_u_rent_plus[t] 
+    rent_choice = sol.rent_choice[t]
 
     # restrict loop over terminal periods
     Td_len = np.fmin(t+2,par.Td_shape) # fx 26 years old: terminal period can be 0, 55 og 56
@@ -219,11 +221,11 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                             for i_shock in range(par.Nw):                
                                 # o. next-period income
                                 p = par.grid_w[i_w]
-                                if t < par.Tr: 
+                                if t+1 < par.Tr: # < or <=?
                                     p_plus = par.grid_w[i_shock]
                                 else: 
                                     p_plus = par.grid_w[i_w] 
-                                #p_plus = par.grid_w[i_shock]
+                                
                                 y_plus = trans.p_to_y_func(i_y=i_w,p=p_plus,p_lag=p,t=t+1,par=par)
                                 
                                 # oo. compute weight 
@@ -237,8 +239,8 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                                 ## cash-on-hand
                                 for i_a in range(par.Na):                     
                                     m_plus_stay[i_a] = np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,grid_d_prime[i_dp],Td,Tda,par,t+1) - par.delta*par.q*h - mt.property_tax(par.q,h,par),par.a_max) 
-                                    m_plus_gross_ref[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp],par.a_max))
-                                    m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,grid_d_prime[i_dp],Td,Tda,par,t+1) - grid_d_prime[i_dp] + (1-par.C_sell)*par.q*h,par.a_max))
+                                    m_plus_gross_ref[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - d_plus,par.a_max)) # grid_d_prime[i_dp] or d_plus?
+                                    m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(trans.m_plus_func(par.grid_a[i_a],y_plus,grid_d_prime[i_dp],Td,Tda,par,t+1)-d_plus+(1-par.C_sell)*par.q*h,par.a_max))
                                     #m_plus_gross_buy[i_a] = np.fmax(par.x_min,np.fmin(m_plus_stay[i_a] - grid_d_prime[i_dp] + (1-par.C_sell)*par.q*h,par.a_max))
                                 
                                 ## interpolate to get inverse funcs for stayers
@@ -285,11 +287,11 @@ def postdecision_compute_v_bar_q_own(t,sol,par):
                                         marg_u_plus = 1/inv_marg_u_rent_plus[i_w,i_shock,i_a,int(rent_choice[i_w,i_shock,i_a])]
                                     #assert marg_u_plus > 0, print(f'negative marginal utility of post decision. Index is ({i_h, i_dp, i_Td, i_Tda, i_w, i_a,}) choice = {choice}, discrete = {discrete}, {marg_u_plus}, {rent_choice}, {m_plus_gross_ref}, {m_plus_gross_buy}')
                                     v_bar[i_a] += weight*par.beta*v_plus
-                                    q[i_h,i_dp,i_Td,i_Tda,i_w,i_a] += weight*par.beta*(1+par.r)*marg_u_plus # +1 to not overwrite rent solution
+                                    q[i_h,i_dp,i_Td,i_Tda,i_w,i_a] += weight*par.beta*(1+par.r)*marg_u_plus 
                                     
                             # iv. transform post decision value function
                             for i_a in range(par.Na):
-                                inv_v_bar[i_h,i_dp,i_Td,i_Tda,i_w,i_a] = -1/v_bar[i_a] # +1 to not overwrite rent solution                           
+                                inv_v_bar[i_h,i_dp,i_Td,i_Tda,i_w,i_a] = -1/v_bar[i_a] 
 
 
 ####################
@@ -446,12 +448,15 @@ def solve_ref_fast(t,sol,par):
                     c_ref[i_h,i_w,i_x] = 0
                     inv_v_ref[i_h,i_w,i_x] = 0
                     inv_marg_u_ref[i_h,i_w,i_x] = 0        
-                    continue
                 else: 
                     # oooo. now interpolate on stayer consumption and value function
-                    c_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,c_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
-                    inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                    c_ref[i_h,i_w,i_x] = linear_interp.interp_2d(grid_d_prime,par.grid_m,c_stay[i_h,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
+                    inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_2d(grid_d_prime,par.grid_m,inv_v_stay[i_h,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
                     inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
+                    
+                    #c_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,c_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                    #inv_v_ref[i_h,i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_h,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                    #inv_marg_u_ref[i_h,i_w,i_x] = 1/utility.marg_func_nopar(c_ref[i_h,i_w,i_x],nu,rho,n)
 
 
 ####################
@@ -518,7 +523,7 @@ def solve_buy_fast(t,sol,par):
                     d_prime_now = grid_d_prime[i_dp]
 
                     ## buyer's net cash on hand equation
-                    loan = 1 #int(d_prime_now > 0)
+                    loan = int(d_prime_now > 0)
                     m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.delta+par.C_buy)*par.q*h_buy_now-mt.property_tax(par.q,h_buy_now,par)
                     #m_net_now = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_now-(1+par.C_buy)*par.q*h_buy_now
                     
@@ -548,7 +553,7 @@ def solve_buy_fast(t,sol,par):
             h_buy[i_w,i_x] = h_buy_best
 
             ## buyer's net cash on hand equation
-            loan = 1 #int(d_prime_best > 0)
+            loan = int(d_prime_best > 0)
             m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.delta+par.C_buy)*par.q*h_buy_best-mt.property_tax(par.q,h_buy_best,par)
             #m_net = m_gross-loan*par.Cf_ref+(1-par.Cp_ref)*d_prime_best-(1+par.C_buy)*par.q*h_buy_best
             
@@ -563,9 +568,14 @@ def solve_buy_fast(t,sol,par):
                 inv_marg_u_buy[i_w,i_x] = 0        
             else: 
                 # oooo. interpolate on stayer consumption and value function
-                c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
-                inv_v_buy[i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                d_high_best = np.fmin(par.omega_ltv*par.q*h_buy_best,omega_dti*y)
+                grid_dp_best = np.linspace(0,d_high_best,par.Nd)
+                c_buy[i_w,i_x]= linear_interp.interp_2d(grid_dp_best,par.grid_m,c_stay[i_hb_best,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
+                inv_v_buy[i_w,i_x] = linear_interp.interp_2d(grid_dp_best,par.grid_m,inv_v_stay[i_hb_best,:,i_Td_new,Tda_best,i_w,:],d_prime_best,m_net)
                 inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
+                #c_buy[i_w,i_x]= linear_interp.interp_1d(par.grid_m,c_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                #inv_v_buy[i_w,i_x] = linear_interp.interp_1d(par.grid_m,inv_v_stay[i_hb_best,i_dp_best,i_Td_new,Tda_best,i_w,:],m_net)
+                #inv_marg_u_buy[i_w,i_x] = 1/utility.marg_func_nopar(c_buy[i_w,i_x],nu,rho,n)
 
 
 ####################

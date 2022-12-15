@@ -41,7 +41,7 @@ def lifecycle_full(model,quantiles:bool=False):
     sim = model.sim
 
     # b. figure
-    fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(12,12),dpi=1200)
 
     simvarlist = [('y','mean pre-tax income'),
                   ('h_prime','$h_t$ - mean house size'),
@@ -123,7 +123,7 @@ def homeownership(model):
                 }
 
     # b. figure
-    fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(12,12),dpi=1200)
 
     # determine number of rows in figure, given the number of columns
     cols = 2
@@ -178,7 +178,7 @@ def nw_and_tc(model):
     trans_cost = mortgage_cost + buy_house_cost
 
     # g. plot
-    fig = plt.figure(figsize=(12,6))
+    fig = plt.figure(figsize=(12,6),dpi=1200)
 
     ax = fig.add_subplot(1,3,1)
     ax.plot(age,np.mean(net_wealth,axis=1),lw=2)
@@ -222,7 +222,7 @@ def example_household(model,hh_no):
     c = sim.c[:,hh_no]
     
     # plots
-    fig = plt.figure(figsize=(12,4))
+    fig = plt.figure(figsize=(12,4),dpi=1200)
     
     ax1 = fig.add_subplot(1,3,1)
     ax1.plot(x_ax,c,label='$c_t$')
@@ -280,7 +280,7 @@ def lifecycle_consav(model):
         sheet_name='NetWealthOutput').to_numpy()
 
     # d. plot
-    fig = plt.figure(figsize=(12,6))
+    fig = plt.figure(figsize=(12,6),dpi=1200)
 
     ax_c = fig.add_subplot(1,2,1)
     ax_c.plot(age,np.mean(c_model,axis=1),lw=2,label='model')
@@ -336,7 +336,7 @@ def lifecycle_housing(model):
         sheet_name='HoOutput').to_numpy()
 
     # d. plot
-    fig = plt.figure(figsize=(12,6))
+    fig = plt.figure(figsize=(12,6),dpi=1200)
 
     ax_ho = fig.add_subplot(1,2,1)
     ax_ho.plot(age,np.mean(ho_model,axis=1),lw=2,label='model')
@@ -395,7 +395,7 @@ def lifecycle_mortgage(model):
     io_share = io_data['share_IO'].to_numpy(dtype='float')
 
     # d. plot
-    fig = plt.figure(figsize=(12,6))
+    fig = plt.figure(figsize=(12,6),dpi=1200)
 
     ax_d = fig.add_subplot(1,2,1)
     ax_d.plot(age,np.mean(d_model,axis=1),lw=2,label='model')
@@ -688,9 +688,9 @@ def n_chi_iniwealth(model,data):
     percentiles = np.arange(model.par.simN)/(10**3)
 
     # b. plot data
-    fs = 14
-    fs_ticks = 12
-    fig = plt.figure(figsize=(12,4))
+    fs = 16
+    fs_ticks = 14
+    fig = plt.figure(figsize=(12,4),dpi=1200)
     
     ax1 = fig.add_subplot(131)
     ax1.plot(age,n)
@@ -762,7 +762,7 @@ def deduction_by_income(model,savename):
 
 
     # c. plot share of interest deduction by income and net wealth quintiles
-    fig = plt.figure(figsize=(12,4))
+    fig = plt.figure(figsize=(12,4),dpi=1200)
     
     ax1 = fig.add_subplot(1,2,1)
     ax1.bar(np.arange(5),ird_quintiles_y)
@@ -830,7 +830,7 @@ def homeowner_by_income(model,savename):
 
 
     # c. plot share of interest deduction by income and net wealth quintiles
-    fig = plt.figure(figsize=(12,4))
+    fig = plt.figure(figsize=(12,4),dpi=1200)
     
     ax1 = fig.add_subplot(1,2,1)
     ax1.bar(np.arange(5),ho_quintiles_y)
